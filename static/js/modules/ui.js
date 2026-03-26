@@ -17,6 +17,7 @@ function switchSection(sectionId) {
     const breadcrumbText = document.getElementById('breadcrumbText');
     if (breadcrumbText) {
         const labels = {
+            'section-dashboard': '<i class="fa-solid fa-house text-primary me-1"></i> ARTO Security Center',
             'section-projects': '<i class="fa-solid fa-folder-tree text-warning me-1"></i> 모든 프로젝트 허브',
             'section-newscan': '<i class="fa-solid fa-square-plus text-success me-1"></i> 신규 프로젝트 생성',
             'section-settings': '<i class="fa-solid fa-gear text-secondary me-1"></i> 환경 설정 (AI / 프록시)',

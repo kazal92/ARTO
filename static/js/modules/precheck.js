@@ -149,7 +149,7 @@ function startAliveCheck(mode) {
 function stopAliveCheck(mode = 'alive') {
     if (aliveCheckEventSource) { aliveCheckEventSource.close(); aliveCheckEventSource = null; }
     const urlPrefix = mode === 'shodan' ? 'shodan' : 'alive';
-    fetch(`${API_BASE}/api/${urlPrefix}/stop`, { method: "POST" }).catch(() => {});
+    fetch(`${API_BASE}/api/${urlPrefix}/stop`, { method: "POST" }).catch(() => { });
 
     const btnStartId = mode === 'alive' ? 'btnStartAlive' : 'btnStartShodan';
     const btnStopId = mode === 'alive' ? 'btnStopAlive' : 'btnStopShodan';
@@ -234,7 +234,7 @@ function startDorkCheck() {
 
 function stopDorkCheck() {
     if (dorkCheckEventSource) { dorkCheckEventSource.close(); dorkCheckEventSource = null; }
-    fetch(`${API_BASE}/api/dork/stop`, { method: "POST" }).catch(() => {});
+    fetch(`${API_BASE}/api/dork/stop`, { method: "POST" }).catch(() => { });
     if (document.getElementById('btnStartDork')) document.getElementById('btnStartDork').style.display = 'block';
     if (document.getElementById('btnStopDork')) document.getElementById('btnStopDork').style.display = 'none';
 }
@@ -248,7 +248,7 @@ function switchPrecheckTab(mode) {
             // 인라인 스타일 대신 클래스 토글 사용 (CSS의 display: none/block 정책 준수)
             if (m === mode) s.classList.add('active');
             else s.classList.remove('active');
-            
+
             // 혹시 남아있을 수 있는 인라인 스타일 제거 (중요!)
             s.style.display = '';
         }
@@ -293,7 +293,6 @@ function createPrecheckProject() {
         .then(res => res.json())
         .then(data => {
             if (data.status === "success") {
-                alert("사전점검 프로젝트가 생성되었습니다!");
                 if (typeof loadHistoryList === "function") loadHistoryList();
                 setTimeout(() => {
                     selectProject(data.session_id);

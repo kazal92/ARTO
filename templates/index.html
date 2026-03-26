@@ -22,7 +22,7 @@
         <!-- Sidebar Navigation -->
         <div class="sidebar">
             <div class="sidebar-brand" style="cursor: pointer;"
-                onclick="localStorage.removeItem('currentSessionId'); window.location.reload();">
+                onclick="exitProjectMode('section-dashboard');">
                 <i class="fa-solid fa-shield-halved text-primary"></i>
                 <span>ARTO 2.0</span>
             </div>
@@ -31,8 +31,12 @@
                 <div class="label-heading px-3 mt-2 mb-1"
                     style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px;">
                     WORKSPACE ACCS</div>
-                <div class="menu-item active" data-sec="section-projects" onclick="exitProjectMode()">
-                    <i class="fa-solid fa-folder-tree text-warning"></i><span>취약점 스캔</span>
+                <div class="menu-item active" data-sec="section-dashboard"
+                    onclick="exitProjectMode('section-dashboard')">
+                    <i class="fa-solid fa-house text-primary"></i><span>대시보드 홈</span>
+                </div>
+                <div class="menu-item" data-sec="section-projects" onclick="exitProjectMode()">
+                    <i class="fa-solid fa-folder-tree text-warning"></i><span>취약점 스캐너</span>
                 </div>
                 <!-- 🛡️ 취약점 스캔 하위 서브메뉴 -->
                 <div id="sub-scan" class="sub-menu-list" style="display: none;">
@@ -342,9 +346,53 @@
                 </div>
             </div>
 
+            <!-- 🚀 Dashboard Section -->
+            <div id="section-dashboard" class="content-section active">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="fa-solid fa-house text-primary me-2" style="font-size: 1.5rem;"></i>
+                    <h5 class="m-0 fw-bold">ARTO 2.0 Security Center</h5>
+                </div>
+
+
+                <!-- ⚡ 빠른 실행 가이드 -->
+                <h6 class="fw-bold mb-3"><i class="fa-solid fa-bolt text-warning me-2"></i>빠른 인텔리전스 실행</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
+                            onclick="switchSection('section-newscan')"
+                            onmouseover="this.style.transform='translateY(-3px)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            <i class="fa-solid fa-shield-virus text-success mb-2" style="font-size: 2rem;"></i>
+                            <h6 class="fw-bold m-0">신규 취약점 스캔</h6>
+                            <p class="small text-muted mt-2 mb-0">웹 타겟 대상 AI 심층 점검</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
+                            onclick="switchSection('section-alive')"
+                            onmouseover="this.style.transform='translateY(-3px)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            <i class="fa-solid fa-bolt text-info mb-2" style="font-size: 2rem;"></i>
+                            <h6 class="fw-bold m-0">Alive Check 가동</h6>
+                            <p class="small text-muted mt-2 mb-0">다수 도메인 생존 여부 일괄 판단</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
+                            onclick="switchSection('section-dork')"
+                            onmouseover="this.style.transform='translateY(-3px)'"
+                            onmouseout="this.style.transform='translateY(0)'">
+                            <i class="fa-brands fa-google text-warning mb-2" style="font-size: 2rem;"></i>
+                            <h6 class="fw-bold m-0">Google Dork 탐색</h6>
+                            <p class="small text-muted mt-2 mb-0">OSINT 기반 정보 노출 탐지</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 0. Projects Section -->
-            <div id="section-projects" class="content-section active"> <!-- 기본 첫 페이지 기본값 가동 -->
-                <!-- 📈 최상단 글로벌 요약 배너 (Premium) -->
+            <div id="section-projects" class="content-section">
+                <!-- 📈 최상단 글로벌 요약 배너 -->
                 <div class="stats-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
                     <div class="stat-badge" style="border-top: 3px solid var(--primary);">
                         <i class="fa-solid fa-boxes-stacked text-primary stat-icon"></i>
@@ -398,14 +446,14 @@
                 </div>
             </div>
             <div id="section-overview" class="content-section">
-                <h5 class="mb-4 fw-bold">스캔 타겟</h5>
+                <h5 class="mb-4 fw-bold">스캔 대상</h5>
 
 
                 <!-- 🚀 스캔 제어 및 환경 설정 패널 -->
                 <div class="glass-card mb-4" style="border-top: 3px solid var(--warning);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="fw-bold m-0">
-                            <i class="fa-solid fa-sliders text-warning me-2"></i>스캔 구동 환경 설정
+                            <i class="fa-solid fa-sliders text-warning me-2"></i>환경 설정
                         </h6>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
@@ -431,7 +479,7 @@
                                 <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
                                 <select id="aiType" class="form-select"
                                     style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
-                                    onchange="toggleAiSettings()">
+                                    onchange="toggleAiSettings(true)">
                                     <option value="lmstudio">LM Studio (Local)</option>
                                     <option value="gemini">Google Gemini AI</option>
                                     <option value="vertex">Google Vertex AI (미완성)</option>
@@ -636,7 +684,8 @@
                                     <th class="sortable" onclick="sortEndpoints('url')">URL Path <i
                                             class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status
-                                        <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <i class="fa-solid fa-sort ms-1"></i>
+                                    </th>
                                     <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i
                                             class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="80" class="text-center">Action</th>

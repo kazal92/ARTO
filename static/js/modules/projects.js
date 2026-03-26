@@ -385,9 +385,14 @@ async function loadHistoryList(skipSwitch = false) {
             }
 
             const savedSession = localStorage.getItem('currentSessionId');
+            const target = window.initialTargetSec || null;
+            window.initialTargetSec = null; // 메모리 해제하여 잔존 방지
+
             if (savedSession && ((data.sessions && data.sessions.includes(savedSession)) || (globalPrecheckSessions.includes(savedSession)))) {
                 setTimeout(() => {
-                    if (typeof selectProject === 'function') selectProject(savedSession);
+                    if (typeof selectProject === 'function') {
+                        selectProject(savedSession, target);
+                    }
                 }, 300);
             }
         }
@@ -422,7 +427,7 @@ async function startNewScanWizard() {
     }
 }
 
-async function selectProject(sId) {
+async function selectProject(sId, targetSec = null) {
     currentProject.id = sId;
     localStorage.setItem('currentSessionId', sId);
 
@@ -474,7 +479,7 @@ async function selectProject(sId) {
     }
 
     if (isPrecheck) {
-        switchSection('section-alive');
+        switchSection(targetSec || 'section-alive');
 
         (async () => {
             try {
@@ -504,6 +509,6 @@ async function selectProject(sId) {
             }
         })();
     } else {
-        switchSection('section-overview');
+        switchSection(targetSec || 'section-overview');
     }
 }

@@ -5,9 +5,19 @@
 
 // ── AI 설정 토글 ────────────────────────────────────────
 
-function toggleAiSettings() {
+function toggleAiSettings(shouldUpdateUrl = false) {
     const aiType = document.getElementById('aiType')?.value;
-    
+    const aiUrlInput = document.getElementById('aiUrl');
+
+    // 엔진 선택 시 URL 즉시 변경 (사용자 인터랙션 발생 시에만)
+    if (shouldUpdateUrl && aiUrlInput) {
+        if (aiType === 'gemini') {
+            aiUrlInput.value = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+        } else if (aiType === 'lmstudio') {
+            aiUrlInput.value = 'http://192.168.1.100:1234/v1';
+        }
+    }
+
     // 1. 모든 컨테이너 숨기기
     const containers = ['aiUrlContainer', 'geminiKeyContainer', 'lmstudioKeyContainer', 'vertexKeyContainer'];
     containers.forEach(id => {
