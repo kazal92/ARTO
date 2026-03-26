@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARTO Dashboard - Enterprise Security Scanner</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+</head>
+
+<body>
+
+    <div class="app-container">
+
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="sidebar-brand" style="cursor: pointer;"
+                onclick="localStorage.removeItem('currentSessionId'); window.location.reload();">
+                <i class="fa-solid fa-shield-halved text-primary"></i>
+                <span>ARTO 2.0</span>
+            </div>
+            <div class="sidebar-menu">
+                <!-- 🌍 전역 메뉴 (Global Hub) -->
+                <div class="label-heading px-3 mt-2 mb-1"
+                    style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px;">
+                    WORKSPACE ACCS</div>
+                <div class="menu-item active" data-sec="section-projects" onclick="exitProjectMode()">
+                    <i class="fa-solid fa-folder-tree text-warning"></i><span>취약점 스캔</span>
+                </div>
+                <!-- 🛡️ 취약점 스캔 하위 서브메뉴 -->
+                <div id="sub-scan" class="sub-menu-list" style="display: none;">
+                    <div class="menu-item" data-sec="section-overview" onclick="switchSection('section-overview')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔 대상</span>
+                    </div>
+                    <div class="menu-item" data-sec="section-endpoints" onclick="switchSection('section-endpoints')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트</span>
+                    </div>
+                    <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-vulns')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-solid fa-shield-virus" style="font-size: 0.85rem;"></i><span>스캔 결과</span>
+                    </div>
+                </div>
+
+                <div class="menu-item" data-sec="section-precheck-projects"
+                    onclick="exitProjectMode('section-precheck-projects');">
+                    <i class="fa-solid fa-bolt text-info"></i><span>사전 점검 도구</span>
+                </div>
+                <!-- ⚡ 사전 점검 하위 서브메뉴 -->
+                <div id="sub-precheck" class="sub-menu-list" style="display: none;">
+                    <div class="menu-item" data-sec="section-alive" onclick="switchSection('section-alive')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-solid fa-bolt text-info" style="font-size: 0.85rem;"></i><span>Alive Check</span>
+                    </div>
+                    <div class="menu-item" data-sec="section-shodan" onclick="switchSection('section-shodan')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-solid fa-magnifying-glass text-warning"
+                            style="font-size: 0.85rem;"></i><span>Shodan 조회</span>
+                    </div>
+                    <div class="menu-item" data-sec="section-dork" onclick="switchSection('section-dork')"
+                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                        <i class="fa-brands fa-google text-success" style="font-size: 0.85rem;"></i><span>Google Dork
+                            스캔</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-auto p-1">
+                <button class="btn btn-sm btn-outline-secondary w-100 mb-2" onclick="toggleTheme()"
+                    style="font-size: 0.75rem; border-color: var(--border-color); color: var(--text-muted);">
+                    <i class="fa-solid fa-circle-half-stroke me-1" id="themeIcon"></i> 테마 전환
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content View -->
+        <div class="main-content">
+
+            <!-- Sticky Topbar -->
+            <div class="topbar">
+                <div class="d-flex align-items-center gap-2" id="breadcrumb">
+                    <span id="breadcrumbText" style="font-weight: 500; color: var(--text-main);">모든 프로젝트</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div id="topbarScanControls" style="display: none;" class="align-items-center gap-2">
+                        <span id="scanStatusText" class="small text-muted"><i class="fa-solid fa-circle-dot me-1"></i>분석
+                            대기</span>
+                    </div>
+                    <!-- 우측 상단 슬림 검색바 (Premium) -->
+                    <input type="text" id="projectSearch" class="glass-input"
+                        style="font-size: 0.75rem; padding: 0.3rem 0.75rem; width: 180px;" placeholder="프로젝트 검색..."
+                        onkeyup="filterProjects()">
+                </div>
+            </div>
+
+            <!-- Precheck Projects List -->
+            <div id="section-precheck-projects" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-solid fa-bolt text-info me-2" style="font-size: 1.5rem;"></i>
+                        <h5 class="m-0 fw-bold">사전 점검 프로젝트 목록</h5>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
+                            onclick="deleteSelectedProjects('precheck')">
+                            <i class="fa-solid fa-trash-can me-1"></i> 선택 삭제
+                        </button>
+                        <button class="btn btn-sm btn-info text-dark" style="font-size: 0.78rem;"
+                            onclick="switchSection('section-newprecheck')">
+                            <i class="fa-solid fa-plus me-1"></i> 새 프로젝트
+                        </button>
+                    </div>
+                </div>
+                <!-- 🔍 정렬 UI 추가 -->
+                <div class="d-flex justify-content-end mb-2">
+                    <select class="form-select form-select-sm bg-dark text-light border-secondary"
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem;" id="sortPrecheckProjects"
+                        onchange="sortAndRenderProjects('precheck')">
+                        <option value="date_desc">최신 생성순</option>
+                        <option value="date_asc">오래된 생성순</option>
+                        <option value="name_asc">이름순 (A-Z)</option>
+                        <option value="name_desc">이름순 (Z-A)</option>
+                    </select>
+                </div>
+                <div class="row g-3" id="precheckProjectsGrid">
+                    <!-- Javascript가 이력 카드를 그릴 공간 -->
+                </div>
+            </div>
+
+            <!-- New Precheck Project Section -->
+            <div id="section-newprecheck" class="content-section">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="fa-solid fa-bolt text-info me-2" style="font-size: 1.5rem;"></i>
+                    <h5 class="m-0 fw-bold">신규 사전 점검 프로젝트 생성</h5>
+                </div>
+                <div class="glass-card" style="max-width: 850px; border-top: 3px solid var(--info);">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">프로젝트 명칭 (Custom Name)</label>
+                        <input type="text" id="precheckProjName" class="glass-input w-100" placeholder="예: 사전점검_대외계서버">
+                    </div>
+                    <!-- 대상 URL 입력항목 없음 -->
+                    <button class="btn btn-info text-dark w-100 mt-3" onclick="createPrecheckProject()">
+                        <i class="fa-solid fa-plus me-1"></i> 사전접검 워크스페이스 생성
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alive Check Section -->
+            <div id="section-alive" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-solid fa-bolt text-info me-2" style="font-size: 1.5rem;"></i>
+                        <h5 class="m-0 fw-bold">Alive Check </h5>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success" onclick="downloadAliveCheckCSV('alive')">
+                            <i class="fa-solid fa-file-csv me-1"></i>CSV 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="glass-card" style="border-top: 3px solid var(--info); padding: 1rem;">
+                            <div class="row align-items-end g-3">
+                                <div class="col">
+                                    <label class="form-label small fw-bold text-muted mb-1">대상 도메인 목록</label>
+                                    <textarea id="aliveInput" class="glass-input w-100 font-mono" rows="2"
+                                        placeholder="example.com, test.com ..."
+                                        style="resize: vertical; min-height: 60px; font-size: 0.852rem;"></textarea>
+                                </div>
+                                <div class="col-auto d-flex gap-2 align-items-center">
+                                    <div class="text-center small text-muted me-2" style="min-width: 80px;">
+                                        진행률: <span id="aliveProgress" class="fw-bold text-muted">0 / 0</span>
+                                    </div>
+                                    <button id="btnStartAlive" class="btn btn-primary px-4"
+                                        onclick="startAliveCheck('alive')">
+                                        <i class="fa-solid fa-play me-1"></i> 시작
+                                    </button>
+                                    <button id="btnStopAlive" class="btn btn-danger px-4"
+                                        onclick="stopAliveCheck('alive')" style="display: none;">
+                                        <i class="fa-solid fa-stop me-1"></i> 중단
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="glass-card"
+                            style="padding: 0; overflow: hidden; display: flex; flex-direction: column; resize: vertical; min-height: 450px; height: 500px;">
+                            <div id="aliveTableGrid" style="flex: 1; width: 100%; height: 100%; overflow: hidden;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shodan Section -->
+            <div id="section-shodan" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-solid fa-magnifying-glass text-warning me-2" style="font-size: 1.5rem;"></i>
+                        <h5 class="m-0 fw-bold">Shodan 정보 조회 (IP / Ports / Vulns)</h5>
+                    </div>
+                    <div>
+
+                        <button class="btn btn-sm btn-outline-success" onclick="downloadAliveCheckCSV('shodan')">
+                            <i class="fa-solid fa-file-csv me-1"></i>CSV 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="glass-card" style="border-top: 3px solid var(--warning); padding: 1rem;">
+                            <div class="row align-items-end g-3">
+                                <div class="col">
+                                    <label class="form-label small fw-bold text-muted mb-1">대상 도메인/IP 목록</label>
+                                    <textarea id="shodanInput" class="glass-input w-100 font-mono" rows="2"
+                                        placeholder="example.com, IP ..."
+                                        style="resize: vertical; min-height: 60px; font-size: 0.852rem;"></textarea>
+                                </div>
+                                <div class="col-auto d-flex gap-2 align-items-center">
+                                    <div class="text-center small text-muted me-2" style="min-width: 80px;">
+                                        진행률: <span id="shodanProgress" class="fw-bold text-light">0 / 0</span>
+                                    </div>
+                                    <button id="btnStartShodan" class="btn btn-warning px-4 text-dark"
+                                        onclick="startAliveCheck('shodan')">
+                                        <i class="fa-solid fa-play me-1"></i> 시작
+                                    </button>
+                                    <button id="btnStopShodan" class="btn btn-danger px-4"
+                                        onclick="stopAliveCheck('shodan')" style="display: none;">
+                                        <i class="fa-solid fa-stop me-1"></i> 중단
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="glass-card"
+                            style="padding: 0; overflow: hidden; display: flex; flex-direction: column; resize: vertical; min-height: 450px; height: 500px;">
+                            <div id="shodanTableGrid" style="flex: 1; width: 100%; height: 100%; overflow: hidden;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google Dork Section -->
+            <div id="section-dork" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fa-brands fa-google text-success me-2" style="font-size: 1.5rem;"></i>
+                        <h5 class="m-0 fw-bold">Google Dork 스캔</h5>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success" onclick="downloadAliveCheckCSV('dork')">
+                            <i class="fa-solid fa-file-csv me-1"></i>CSV 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 🛠️ 상단 설정 영역 -->
+                <div class="glass-card mb-4" style="border-top: 3px solid var(--success);">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-muted mb-1">대상 도메인 목록</label>
+                            <textarea id="dorkInput" class="glass-input w-100 font-mono" rows="8"
+                                placeholder="example.com&#10;test.com"
+                                style="resize: none; font-size: 0.8rem;"></textarea>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold text-muted mb-1">Dork 스캔 패턴 설정
+                                (<code>항목|쿼리</code>)</label>
+                            <textarea id="dorkCustomCategories" class="glass-input w-100 font-mono" rows="8"
+                                style="resize: none; font-size: 0.75rem;">불필요한 페이지 노출|site:{domain} inurl:admin OR inurl:login
+디렉터리 인덱싱|site:{domain} intitle:"index of"
+임시 파일 노출|site:{domain} ext:env OR ext:log OR ext:bkp OR ext:ini
+관리자 페이지 노출|site:{domain} inurl:sysadmin OR inurl:manage OR intitle:관리자
+부적절한 에러 처리|site:{domain} "sql error" OR "fatal error" OR "exception"
+개인정보 주민번호|site:{domain} "주민등록번호" OR "주민번호" OR "RRN"
+개인정보 전화번호|site:{domain} "전화번호" OR "휴대폰" OR "010-"
+개인정보 이메일|site:{domain} "이메일" OR "Email"
+민감한 정보 노출|site:{domain} "confidential" OR "internal use only" OR "비밀"</textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Google API Keys (줄바꿈 구분)</label>
+                                <textarea id="dorkKeys" class="glass-input w-100 font-mono" rows="3"
+                                    placeholder="비워두면 .env 의 설정값을 사용합니다&#10;AIzaSy..."
+                                    style="resize: none; font-size: 0.75rem;"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small fw-bold text-muted mb-1">Custom Search CX ID</label>
+                                <input type="text" id="dorkCx" class="glass-input w-100 font-mono"
+                                    placeholder="비워두면 .env 의 설정값 사용" style="font-size: 0.75rem;">
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="btnStartDork" class="btn btn-success w-100 text-dark"
+                                    onclick="startDorkCheck()">
+                                    <i class="fa-solid fa-play me-1"></i> Dork 스캔 시작
+                                </button>
+                                <button id="btnStopDork" class="btn btn-danger w-100" onclick="stopDorkCheck()"
+                                    style="display: none;">
+                                    <i class="fa-solid fa-stop me-1"></i> 강제 중단
+                                </button>
+                            </div>
+                            <div class="mt-2 text-center small text-light fw-bold">진행률: <span id="dorkProgress">0 /
+                                    0</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 📊 하단 결과 영역 -->
+                <div class="glass-card"
+                    style="padding: 0; overflow: hidden; display: flex; flex-direction: column; height: 500px;">
+                    <div id="dorkTableGrid" style="flex: 1; width: 100%; height: 100%; overflow: hidden;"></div>
+                </div>
+            </div>
+
+            <!-- 0. New Scan Section -->
+            <div id="section-newscan" class="content-section">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="fa-solid fa-square-plus text-success me-2" style="font-size: 1.5rem;"></i>
+                    <h5 class="m-0 fw-bold">신규 보안 점검 프로젝트 생성</h5>
+                </div>
+                <div class="glass-card" style="max-width: 850px; border-top: 3px solid var(--success);">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">프로젝트 명칭 (Custom Name)</label>
+                        <input type="text" id="newProjectName" class="glass-input w-100" placeholder="예: 쇼핑몰 결제모듈 검증">
+                    </div>
+                    <button class="btn btn-success w-100 mt-3" onclick="startNewScanWizard()">
+                        <i class="fa-solid fa-plus me-1"></i> 프로젝트 워크스페이스 생성
+                    </button>
+                </div>
+            </div>
+
+            <!-- 0. Projects Section -->
+            <div id="section-projects" class="content-section active"> <!-- 기본 첫 페이지 기본값 가동 -->
+                <!-- 📈 최상단 글로벌 요약 배너 (Premium) -->
+                <div class="stats-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <div class="stat-badge" style="border-top: 3px solid var(--primary);">
+                        <i class="fa-solid fa-boxes-stacked text-primary stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">총 프로젝트</div>
+                            <div class="stat-number" id="globalTotalProjects">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-badge" style="border-top: 3px solid var(--critical);">
+                        <i class="fa-solid fa-triangle-exclamation text-danger stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">위험 진단 누적</div>
+                            <div class="stat-number" id="globalTotalVulns">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-badge" style="border-top: 3px solid var(--success);">
+                        <i class="fa-solid fa-circle-check text-success stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">점검 완료</div>
+                            <div class="stat-number" id="globalDoneProjects">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="m-0 fw-bold">취약점 스캔 프로젝트 목록</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
+                            onclick="deleteSelectedProjects()">
+                            <i class="fa-solid fa-trash-can me-1"></i> 선택 삭제
+                        </button>
+                        <button class="btn btn-sm btn-success" style="font-size: 0.78rem;"
+                            onclick="switchSection('section-newscan')">
+                            <i class="fa-solid fa-plus me-1"></i> 새 프로젝트
+                        </button>
+                    </div>
+                </div>
+                <!-- 🔍 정렬 UI 추가 -->
+                <div class="d-flex justify-content-end mb-2">
+                    <select class="form-select form-select-sm bg-dark text-light border-secondary"
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem;" id="sortProjects"
+                        onchange="sortAndRenderProjects('scan')">
+                        <option value="date_desc">최신 생성순</option>
+                        <option value="date_asc">오래된 생성순</option>
+                        <option value="name_asc">이름순 (A-Z)</option>
+                        <option value="name_desc">이름순 (Z-A)</option>
+                    </select>
+                </div>
+                <div class="row g-3" id="projectsGrid">
+                    <!-- Javascript가 이력 카드를 그릴 공간 -->
+                </div>
+            </div>
+            <div id="section-overview" class="content-section">
+                <h5 class="mb-4 fw-bold">스캔 타겟</h5>
+
+
+                <!-- 🚀 스캔 제어 및 환경 설정 패널 -->
+                <div class="glass-card mb-4" style="border-top: 3px solid var(--warning);">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold m-0">
+                            <i class="fa-solid fa-sliders text-warning me-2"></i>스캔 구동 환경 설정
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
+                                <i class="fa-solid fa-broom me-1"></i> ZAP history 초기화
+                            </button>
+                            <button class="btn btn-sm btn-success" id="startBtn" onclick="startScan()">
+                                <i class="fa-solid fa-play me-1"></i> 스캔 시작
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 📌 타겟 URL: 항상 노출 -->
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-12">
+                            <label class="form-label text-muted small fw-bold">타겟 주소 (Target URL)</label>
+                            <input type="text" id="targetUrl" class="glass-input w-100" placeholder="http://example.com"
+                                style="background: rgba(0,0,0,0.2) !important;">
+                        </div>
+                    </div>
+                    <div id="scanConfigBody">
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
+                                <select id="aiType" class="form-select"
+                                    style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="toggleAiSettings()">
+                                    <option value="lmstudio">LM Studio (Local)</option>
+                                    <option value="gemini">Google Gemini AI</option>
+                                    <option value="vertex">Google Vertex AI (미완성)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label text-muted small fw-bold mb-0">Model Name</label>
+                                    <button id="btnFetchModels" class="btn btn-xs btn-link text-primary p-0"
+                                        style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                        onclick="fetchLmStudioModels()">
+                                        <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
+                                    </button>
+                                </div>
+                                <!-- LM Studio용 텍스트 입력박스 -->
+                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b">
+
+                                <!-- LM Studio용 모델 드롭다운 셀렉트 -->
+                                <select id="aiModelLmSelect" class="form-select mt-1"
+                                    style="display:none; background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                </select>
+
+                                <!-- Gemini용 선택형 드롭다운 (26년 3월 기준 최신 모델) -->
+                                <select id="aiModelSelect" class="form-select"
+                                    style="display:none; background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);">
+                                    <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (경량 고성능)</option>
+                                    <option value="gemini-3-pro">gemini-3-pro (에이전트 특화)</option>
+                                    <option value="gemini-3.1-pro">gemini-3.1-pro (최신 추론형)</option>
+                                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6" id="aiUrlContainer">
+                                <label class="form-label text-muted small fw-bold">API EndPoint URL</label>
+                                <input type="text" id="aiUrl" class="glass-input w-100" placeholder="http://아이피/v1"
+                                    oninput="fetchLmStudioModels(true)">
+                            </div>
+                            <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Gemini API Key</label>
+                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력">
+                            </div>
+                            <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
+                                <input type="text" id="lmstudioApiKey" class="glass-input w-100"
+                                    placeholder="API Key 입력 (필요시)">
+                            </div>
+                            <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
+                                <input type="password" id="vertexApiKey" class="glass-input w-100"
+                                    placeholder="ya29... (Bearer Token)">
+                            </div>
+                        </div>
+                        <label class="form-label text-muted small fw-bold">사용자 정의 요청 헤더 (Cookies, Setup)</label>
+                        <textarea id="customHeaders" class="glass-input w-100 mb-2" rows="2"
+                            style="resize: vertical; min-height: 60px;"
+                            placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."></textarea>
+
+                        <div class="form-check form-switch mb-3 d-flex align-items-center">
+                            <input class="form-check-input" type="checkbox" id="enableDeepRecon" checked
+                                style="cursor: pointer; width: 2.2rem; height: 1.1rem; background-color: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); margin: 0; transition: transform 0.2s, box-shadow 0.2s;"
+                                onmouseover="this.style.boxShadow='0 0 6px rgba(139, 92, 246, 0.4)';"
+                                onmouseout="this.style.boxShadow='none';">
+                            <label class="form-check-label small fw-bold text-muted ms-2" for="enableDeepRecon"
+                                style="cursor: pointer; font-size: 0.82rem;">
+                                FFuF 재귀적 심층 정찰 활성화
+                            </label>
+                        </div>
+
+                        <label class="form-label text-muted small fw-bold">Upstream Proxy</label>
+                        <div class="input-group input-group-sm">
+                            <div class="input-group-text"
+                                style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);">
+                                <input class="form-check-input mt-0" type="checkbox" id="proxyEnabled"
+                                    onchange="toggleProxy()">
+                                <span class="ms-2 small" style="color: var(--text-muted);">Enabled</span>
+                            </div>
+                            <input type="text" id="proxyHost" class="form-control"
+                                style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                value="192.168.0.15">
+                            <span class="input-group-text"
+                                style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); border-left: none; border-right: none;">:</span>
+                            <input type="number" id="proxyPort" class="form-control"
+                                style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); max-width: 90px;"
+                                value="8080">
+                            <button class="btn btn-outline-primary" type="button"
+                                onclick="updateProxySettings()">적용</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <label class="form-label text-muted small text-uppercase fw-bold">스캔 진척률</label>
+                    <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem;">
+                        <span id="scanStatusVerbose">대기 모드</span>
+                        <span id="progressText">0%</span>
+                    </div>
+                    <div style="height: 6px; background: var(--bg-hover); border-radius: 3px;">
+                        <div id="progressBar"
+                            style="height: 100%; width: 0%; background: linear-gradient(90deg, #6366f1, #14b8a6); border-radius: 3px; transition: width 0.3s;">
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- ➕ 요약 대시보드 하단 실시간 로그 위젯 탑재 (Premium) -->
+                <div class="glass-card mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold m-0"><i
+                                class="fa-solid fa-terminal me-1"></i> 실시간 보안 엔진 로그 콘솔</label>
+                        <div class="d-flex gap-1 align-items-center">
+                            <button class="btn btn-xs btn-outline-success" style="font-size: 0.65rem; padding: 2px 5px;"
+                                onclick="restoreLogs()">실시간 로그</button>
+                            <button class="btn btn-xs btn-outline-info" style="font-size: 0.65rem; padding: 2px 5px;"
+                                onclick="loadRawJson('ai_input_full_requests')">AI Full Input</button>
+                            <button class="btn btn-xs btn-outline-warning" style="font-size: 0.65rem; padding: 2px 5px;"
+                                onclick="loadRawJson('ai_findings')">AI Findings</button>
+                            <div class="dropdown">
+                                <button class="btn btn-xs btn-outline-secondary dropdown-toggle" type="button"
+                                    id="batchDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                                    style="font-size: 0.65rem; padding: 2px 5px;">
+                                    AI Batches
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" id="batchList"
+                                    style="font-size: 0.75rem;">
+                                    <li><a class="dropdown-item text-muted">No batches yet</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="console-stream" id="logWindow" style="height: 320px;">
+                        <div style="color: #10b981;">[System] Security Engine online. Awaiting task.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Endpoints Section -->
+            <div id="section-endpoints" class="content-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-circle-nodes text-primary" style="font-size: 1.5rem;"></i>
+                        <h5 class="fw-bold m-0">엔드포인트 맵</h5>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
+                            <i class="fa-solid fa-trash-can me-1"></i>ZAP 초기화
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="loadZapHistory()">
+                            <i class="fa-solid fa-bolt me-1"></i>ZAP 히스토리 로드
+                        </button>
+                        <button class="btn btn-sm btn-success" id="btnAnalyzeEndpoints"
+                            onclick="analyzeSelectedEndpoints()" disabled>
+                            <i class="fa-solid fa-brain me-1"></i>선택 항목 AI 심층 분석 (0)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 📊 Endpoint Summary Banner -->
+                <div class="ep-summary-bar">
+                    <div class="ep-stat-item">
+                        <span class="ep-stat-label">Total</span>
+                        <span class="ep-stat-value" id="statEpTotal">0</span>
+                    </div>
+                    <div class="ep-stat-divider"></div>
+                    <div class="ep-stat-item">
+                        <span class="ep-stat-label">GET</span>
+                        <span class="ep-stat-value" style="color: #10b981;" id="statEpGet">0</span>
+                    </div>
+                    <div class="ep-stat-item">
+                        <span class="ep-stat-label">POST</span>
+                        <span class="ep-stat-value" style="color: #f59e0b;" id="statEpPost">0</span>
+                    </div>
+                    <div class="ep-stat-item">
+                        <span class="ep-stat-label">Others</span>
+                        <span class="ep-stat-value text-muted" id="statEpOther">0</span>
+                    </div>
+                    <div class="ep-stat-divider"></div>
+                    <div class="ep-stat-item">
+                        <span class="ep-stat-label">AI Targeted</span>
+                        <span class="ep-stat-value" style="color: #8b5cf6;" id="statEpAi">0</span>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="padding: 0; overflow: hidden; border-radius: 12px;">
+                    <div class="table-responsive">
+                        <table class="ep-table">
+                            <thead>
+                                <tr>
+                                    <th width="40" class="text-center">
+                                        <input type="checkbox" id="checkAllEndpoints"
+                                            onchange="toggleAllEndpoints(this)">
+                                    </th>
+                                    <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No. <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">AI <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">
+                                        Method <i class="fa-solid fa-sort ms-1"></i></th>
+                                    <th class="sortable" onclick="sortEndpoints('url')">URL Path <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status
+                                        <i class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="80" class="text-center">Action</th>
+                                </tr>
+                                <tr class="filter-row">
+                                    <th></th>
+                                    <th></th>
+                                    <th>
+                                        <select id="filterAiTarget" onchange="applyFilters()"
+                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                            <option value="">All</option>
+                                            <option value="yes">Targeted</option>
+                                            <option value="no">Skipped</option>
+                                        </select>
+                                    </th>
+                                    <th>
+                                        <input type="text" id="filter메소드" placeholder="Method..."
+                                            onkeyup="applyFilters()"
+                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                    </th>
+                                    <th>
+                                        <input type="text" id="filterUrl" placeholder="URL 검색..."
+                                            onkeyup="applyFilters()"
+                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                    </th>
+                                    <th>
+                                        <input type="text" id="filterStatus" placeholder="Code..."
+                                            onkeyup="applyFilters()"
+                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                    </th>
+                                    <th></th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="endpointsTableBody">
+                                <tr>
+                                    <td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="endpointPagination" class="d-flex justify-content-center py-3 border-top"
+                        style="border-color: var(--border-color) !important;"></div>
+                </div>
+            </div>
+
+            <!-- 3. Vulnerabilities Section -->
+            <div id="section-vulns" class="content-section">
+                <div class="stats-grid mb-4">
+                    <div class="stat-badge" style="border-top: 3px solid var(--critical);">
+                        <i class="fa-solid fa-radiation text-danger stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">치명적 위험</div>
+                            <div class="stat-number" id="statCritical">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-badge" style="border-top: 3px solid var(--high);">
+                        <i class="fa-solid fa-burst text-warning stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">고위험</div>
+                            <div class="stat-number" id="statHigh">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-badge" style="border-top: 3px solid var(--medium);">
+                        <i class="fa-solid fa-circle-exclamation text-info stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">중/저위험</div>
+                            <div class="stat-number" id="statMedLow">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-badge" style="border-top: 3px solid var(--info);">
+                        <i class="fa-solid fa-link text-primary stat-icon"></i>
+                        <div class="stat-info">
+                            <div class="stat-title">엔드포인트</div>
+                            <div class="stat-number" id="statEndpoints">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="m-0 fw-bold">감지된 보안 취약점 목록</h5>
+                    <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
+                        onclick="deleteSelectedCards()">
+                        <i class="fa-solid fa-trash-can me-1"></i> 선택 삭제
+                    </button>
+                </div>
+                <div class="glass-card">
+                    <div class="table-responsive">
+                        <table class="flat-table">
+                            <thead>
+                                <tr>
+                                    <th width="4%" class="text-center">
+                                        <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)"
+                                            style="cursor:pointer;">
+                                    </th>
+                                    <th width="5%">No.</th>
+                                    <th width="10%">위험도</th>
+                                    <th width="8%">점수</th>
+                                    <th width="27%">취약점 명칭</th>
+                                    <th width="39%">대상 파라미터 / 주입 상세</th>
+                                    <th width="7%" class="text-center">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vulnsTableBody">
+                                <tr>
+                                    <td colspan="8" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 5. Settings Section -->
+        <!-- 🏢 Side Drawer Inspector (동적 생성 연동 예정) -->
+        <div id="drawerBackdrop" class="modal-backdrop-custom" onclick="closeDrawer()"></div>
+        <div id="sideDrawer" class="side-drawer">
+            <div class="drawer-header">
+                <h6 class="m-0 fw-bold text-primary" id="drawerTitle">상세 분석 인스펙터</h6>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-xs btn-outline-info" id="btnEditCard"
+                        style="display:none; font-size: 0.75rem; padding: 3px 8px;" onclick="toggleEditCard()">
+                        <i class="fa-solid fa-pen-to-square"></i> 수정
+                    </button>
+                    <button class="btn btn-sm btn-close btn-close-white" onclick="closeDrawer()"></button>
+                </div>
+            </div>
+            <div class="drawer-body" id="drawerBody">
+                <!-- Javascript 영역에서 동적 렌더링 -->
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- ARTO Modules (의존성 순서로 로드) -->
+    <script src="/static/js/modules/utils.js"></script>
+    <script src="/static/js/modules/ui.js"></script>
+    <script src="/static/js/modules/settings.js"></script>
+    <script src="/static/js/modules/endpoints.js"></script>
+    <script src="/static/js/modules/findings.js"></script>
+    <script src="/static/js/modules/precheck.js"></script>
+    <script src="/static/js/modules/projects.js"></script>
+    <script src="/static/js/modules/scan.js"></script>
+    <script src="/static/js/modules/main.js"></script>
+
+    <!-- 앱 진입점 (경량화됨) -->
+    <script src="/static/js/app.js"></script>
+</body>
+
+
+</html>

@@ -1,0 +1,16 @@
+# 🔒 보안 및 캐시 파일 이그노어
+.env
+
+# 📂 실행 및 결과물 디렉토리 (주요 결과 누적 방지)
+results/
+__pycache__/
+
+# 📦 백업 및 압축 파일
+*.zip
+*.tar
+*.gz
+
+# 📝 기타 캐시/로그 파일
+*.log
+.pytest_cache/
+.DS_Store
