@@ -7,17 +7,9 @@ let zapHistoryData = [];
 
 function updateScanConfigButton(isRunning) {
     const startBtn = document.getElementById('startBtn');
-    if (startBtn) {
-        if (isRunning) {
-            startBtn.className = "btn btn-sm btn-danger";
-            startBtn.onclick = stopScan;
-            startBtn.innerHTML = '<i class="fa-solid fa-stop me-1"></i> 스캔 정지';
-        } else {
-            startBtn.className = "btn btn-sm btn-success";
-            startBtn.onclick = startScan;
-            startBtn.innerHTML = '<i class="fa-solid fa-play me-1"></i> 스캔 시작';
-        }
-    }
+    const stopBtn = document.getElementById('stopBtn');
+    if (startBtn) startBtn.style.display = isRunning ? 'none' : '';
+    if (stopBtn) stopBtn.style.display = isRunning ? '' : 'none';
 }
 
 async function startScan() {
@@ -41,6 +33,9 @@ async function startScan() {
     document.getElementById('vulnsTableBody').innerHTML = '<tr><td colspan="5" class="empty-state">스캔 프로세스를 시작합니다...</td></tr>';
     document.getElementById('endpointsTableBody').innerHTML = '<tr><td colspan="8" class="empty-state">엔드포인트 자산 수집 중...</td></tr>';
     aiCardsData = [];
+    aiTargetUrls.clear();
+    selectedEndpointsSet.clear();
+    toggleMainAnalyzeBtn();
     renderCards([]);
     renderEndpoints([]);
     document.getElementById('progressBar').style.width = "0%";
@@ -75,7 +70,12 @@ async function startScan() {
                 target_url: url,
                 project_name: projectName,
                 headers: headers,
+                ffuf_options: document.getElementById('ffufOptions') ? document.getElementById('ffufOptions').value.trim() : '',
+                ffuf_wordlist: document.getElementById('ffufWordlist') ? document.getElementById('ffufWordlist').value : '',
+                enable_zap_spider: document.getElementById('enableZapSpider') ? document.getElementById('enableZapSpider').checked : true,
+                enable_ffuf: document.getElementById('enableFfuf') ? document.getElementById('enableFfuf').checked : true,
                 enable_deep_recon: document.getElementById('enableDeepRecon') ? document.getElementById('enableDeepRecon').checked : true,
+                enable_ai_analysis: document.getElementById('enableAiAnalysis') ? document.getElementById('enableAiAnalysis').checked : true,
                 ai_config: {
                     type: document.getElementById('aiType').value,
                     api_key: document.getElementById('aiType').value === 'gemini'
@@ -118,6 +118,7 @@ async function startScan() {
 
                         if (data.type === "scan_start") {
                             localStorage.setItem('currentSessionId', data.session_id);
+                            currentProject.id = data.session_id;
                             const select = document.getElementById('historySelect');
                             if (select) select.value = data.session_id;
                             loadHistoryList();
@@ -326,74 +327,3 @@ async function loadZapHistory() {
     }
 }
 
-async function analyzeSelectedEndpoints() {
-    const selectedEndpoints = allEndpoints.filter(ep => selectedEndpointsSet.has(`${ep.method || 'GET'}:${ep.url}`));
-
-    if (selectedEndpoints.length === 0) return alert("분석할 항목을 선택해주세요.");
-
-    const btn = document.getElementById('btnAnalyzeEndpoints');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin me-1"></i>분석 중...`;
-    btn.disabled = true;
-
-    appendLog(`선택한 ${selectedEndpoints.length}개의 항목에 대고 AI 심층 분석을 요청합니다.`, "AI");
-
-    try {
-        const sessionId = currentProject.id || localStorage.getItem('currentProject');
-        const sessionDir = sessionId ? `${sessionId}` : "";
-
-        const res = await fetch(`${API_BASE}/api/zap/analyze`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                packets: selectedEndpoints.map(ep => ({
-                    requestHeader: ep.request_raw || "",
-                    requestBody: "",
-                    responseHeader: ep.response_raw || "",
-                    responseBody: "",
-                    url: ep.url,
-                    requestMethod: ep.method
-                })),
-                ai_config: {
-                    type: document.getElementById('aiType').value,
-                    api_key: document.getElementById('aiType').value === 'gemini'
-                        ? document.getElementById('geminiApiKey').value
-                        : (document.getElementById('aiType').value === 'vertex'
-                            ? document.getElementById('vertexApiKey').value
-                            : document.getElementById('lmstudioApiKey').value),
-                    base_url: document.getElementById('aiUrl').value,
-                    model: document.getElementById('aiModel').value
-                },
-                session_dir: sessionDir
-            })
-        });
-
-        const data = await res.json();
-        if (data.status === 'success' && data.findings) {
-            if (data.session_id) {
-                localStorage.setItem('currentSessionId', data.session_id);
-            }
-            loadHistoryList();
-            appendLog(`AI 분석 성공: ${data.findings.length}개의 취약점이 식별되었습니다.`, "AI");
-
-            data.findings.forEach(f => {
-                aiCardsData.push(f);
-            });
-            renderCards(aiCardsData);
-            alert(`AI 분석 완료! ${data.findings.length}개의 항목이 탐지되었습니다.`);
-
-            document.querySelectorAll('.endpoint-check').forEach(c => c.checked = false);
-            const master = document.getElementById('checkAllEndpoints');
-            if (master) master.checked = false;
-            toggleMainAnalyzeBtn();
-        } else {
-            alert("분석 실패: " + (data.message || "Unknown Error"));
-        }
-    } catch (e) {
-        alert("에러 발생: " + e.message);
-        appendLog("AI 분석 중 에러 발생", "System");
-    } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    }
-}

@@ -986,3 +986,257 @@
     font-size: 0.72rem;
     font-weight: 700;
 }
+
+/* ── 커스텀 스크롤바 ── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.6);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(109, 40, 217, 0.2);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(109, 40, 217, 0.45);
+}
+
+/* ── 그라디언트 텍스트 유틸 ── */
+.gradient-text {
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+[data-theme="light"] .gradient-text {
+    background: linear-gradient(135deg, #6d28d9, #0284c7);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+/* ── 입력 포커스 글로우 ── */
+.glass-input:focus {
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+/* ── 사이드바 브랜드 그라디언트 라인 ── */
+.sidebar-brand::after {
+    content: '';
+    display: block;
+    height: 2px;
+    background: linear-gradient(90deg, #8b5cf6, #06b6d4, transparent);
+    border-radius: 1px;
+    margin-top: 1.5rem;
+    opacity: 0.6;
+}
+.sidebar-brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.sidebar-brand .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+/* ── active 메뉴 글로우 ── */
+.menu-item.active {
+    box-shadow: inset 3px 0 8px rgba(99, 102, 241, 0.1);
+}
+
+/* ── 히어로 배너 ── */
+.hero-banner {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(6, 182, 212, 0.06) 100%);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+.hero-banner::before {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -30px;
+    left: 30%;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    margin-bottom: 0.4rem;
+}
+.hero-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1.2rem;
+}
+.hero-stats {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+.hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.hero-stat-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1;
+}
+.hero-stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+[data-theme="light"] .hero-banner {
+    background: linear-gradient(135deg, rgba(109, 40, 217, 0.05) 0%, rgba(2, 132, 199, 0.04) 100%);
+    border-color: rgba(109, 40, 217, 0.1);
+}
+
+/* ── 퀵액션 카드 개선 ── */
+.quick-action-card {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.5rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.quick-action-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.22s;
+    border-radius: 14px;
+}
+.quick-action-card.qa-scan::before  { background: radial-gradient(ellipse at top, rgba(16,185,129,0.08), transparent 70%); }
+.quick-action-card.qa-alive::before { background: radial-gradient(ellipse at top, rgba(6,182,212,0.08), transparent 70%); }
+.quick-action-card.qa-dork::before  { background: radial-gradient(ellipse at top, rgba(234,179,8,0.08), transparent 70%); }
+.quick-action-card:hover::before    { opacity: 1; }
+.quick-action-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(139, 92, 246, 0.3);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+}
+.quick-action-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+.quick-action-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.3rem;
+}
+.quick-action-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* ── 섹션 헤더 ── */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+.section-header-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.section-header-text h5 {
+    margin: 0;
+    font-weight: 800;
+    font-size: 1.15rem;
+}
+.section-header-text p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* ── 사이드바 하단 빌드 정보 ── */
+.sidebar-footer-info {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center;
+    opacity: 0.5;
+    padding: 0 0.5rem 0.5rem;
+    letter-spacing: 0.3px;
+}
+
+/* ── Pulse 애니메이션 (active scan 인디케이터) ── */
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+.pulse-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+    vertical-align: middle;
+}
+
+/* ── 프로그레스바 그라디언트 강화 ── */
+#progressBar {
+    background: linear-gradient(90deg, #8b5cf6, #06b6d4) !important;
+}
+
+/* ── 버튼 호버 그로우 ── */
+.btn-primary:not(:disabled):hover,
+.btn-success:not(:disabled):hover {
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25);
+}
+
+/* ── 반응형 그리드 패딩 ── */
+.content-section {
+    padding: 1.75rem 2rem;
+}

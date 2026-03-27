@@ -8,13 +8,19 @@
 function toggleAiSettings(shouldUpdateUrl = false) {
     const aiType = document.getElementById('aiType')?.value;
     const aiUrlInput = document.getElementById('aiUrl');
+    const aiModelInput = document.getElementById('aiModel');
 
-    // 엔진 선택 시 URL 즉시 변경 (사용자 인터랙션 발생 시에만)
-    if (shouldUpdateUrl && aiUrlInput) {
+    // 엔진 선택 시 URL과 모델 즉시 변경 (사용자 인터랙션 발생 시에만)
+    if (shouldUpdateUrl) {
         if (aiType === 'gemini') {
-            aiUrlInput.value = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+            if (aiUrlInput) aiUrlInput.value = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+            if (aiModelInput) aiModelInput.value = 'gemini-2.0-flash';
         } else if (aiType === 'lmstudio') {
-            aiUrlInput.value = 'http://192.168.1.100:1234/v1';
+            if (aiUrlInput) aiUrlInput.value = 'http://192.168.1.100:1234/v1';
+            if (aiModelInput) aiModelInput.value = 'qwen/qwen3.5-9b';
+        } else if (aiType === 'vertex') {
+            if (aiUrlInput) aiUrlInput.value = 'https://us-central1-aiplatform.googleapis.com/v1';
+            if (aiModelInput) aiModelInput.value = 'gemini-2.0-flash';
         }
     }
 
@@ -43,6 +49,7 @@ function toggleAiSettings(shouldUpdateUrl = false) {
         if (urlCont) urlCont.style.display = '';
         if (keyCont) keyCont.style.display = '';
         if (modelSelect) modelSelect.style.display = '';
+        fetchGeminiModels();
     } else if (aiType === 'lmstudio') {
         const urlCont = document.getElementById('aiUrlContainer');
         const keyCont = document.getElementById('lmstudioKeyContainer');
@@ -78,7 +85,18 @@ function loadSettings() {
 
     const aiType = localStorage.getItem('aiType') || 'lmstudio';
     const aiUrl = localStorage.getItem('aiUrl') || 'http://192.168.1.100:1234/v1';
-    const aiModel = localStorage.getItem('aiModel') || 'qwen/qwen3.5-9b';
+
+    // AI 타입에 따라 기본 모델 결정
+    let aiModel = localStorage.getItem('aiModel');
+    if (!aiModel) {
+        if (aiType === 'gemini') {
+            aiModel = 'gemini-2.0-flash';
+        } else if (aiType === 'vertex') {
+            aiModel = 'gemini-2.0-flash';
+        } else {
+            aiModel = 'qwen/qwen3.5-9b';
+        }
+    }
 
     const set = (id, val) => { if (document.getElementById(id)) document.getElementById(id).value = val; };
     set('aiType', aiType);
@@ -134,16 +152,73 @@ async function toggleProxy() {
 async function clearZapHistory() {
     if (!confirm("ZAP의 모든 히스토리와 사이트 트리를 초기화하시겠습니까? (복구 불가능)")) return;
     try {
-        const res = await fetch(`${API_BASE}/api/zap/clear`, { method: 'POST' });
+        const sessionId = (typeof currentProject !== 'undefined' && currentProject?.id)
+            || localStorage.getItem('currentSessionId') || '';
+        const res = await fetch(`${API_BASE}/api/zap/clear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+        });
         const data = await res.json();
         if (data.status === 'success') {
             if (typeof appendLog === 'function') appendLog(data.message, "System");
+            if (typeof allEndpoints !== 'undefined') allEndpoints = [];
+            if (typeof renderEndpoints === 'function') renderEndpoints([]);
             alert(data.message);
         } else {
             alert("Error: " + data.message);
         }
     } catch (e) {
         console.error(e);
+    }
+}
+
+// ── Gemini 모델 목록 가져오기 ────────────────────────────
+
+async function fetchGeminiModels() {
+    const apiKey = document.getElementById('geminiApiKey')?.value?.trim();
+    const modelSelect = document.getElementById('aiModelSelect');
+    if (!modelSelect) return;
+
+    if (!apiKey) {
+        modelSelect.innerHTML = '<option value="" disabled selected>올바른 API Key를 입력해주세요</option>';
+        const aiModel = document.getElementById('aiModel');
+        if (aiModel) aiModel.value = '';
+        return;
+    }
+
+    modelSelect.innerHTML = '<option value="" disabled selected>모델 목록 로딩 중...</option>';
+
+    try {
+        const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+            { signal: AbortSignal.timeout(5000) }
+        );
+        const data = await res.json();
+
+        if (data.error || !data.models) {
+            modelSelect.innerHTML = '<option value="" disabled selected>올바른 API Key를 입력해주세요</option>';
+            return;
+        }
+
+        const generateModels = data.models
+            .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+            .map(m => m.name.replace('models/', ''));
+
+        if (generateModels.length === 0) {
+            modelSelect.innerHTML = '<option value="" disabled selected>사용 가능한 모델이 없습니다</option>';
+            return;
+        }
+
+        const prev = modelSelect.value;
+        modelSelect.innerHTML = generateModels
+            .map(m => `<option value="${m}"${m === prev ? ' selected' : ''}>${m}</option>`)
+            .join('');
+
+        const aiModel = document.getElementById('aiModel');
+        if (aiModel) aiModel.value = modelSelect.value;
+    } catch (e) {
+        modelSelect.innerHTML = '<option value="" disabled selected>올바른 API Key를 입력해주세요</option>';
     }
 }
 

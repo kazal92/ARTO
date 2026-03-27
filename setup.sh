@@ -144,18 +144,22 @@ if ! command -v python3 &> /dev/null; then
     $SUDO apt-get install -y python3 python3-pip
 fi
 
-# pip 업그레이드
-python3 -m pip install --upgrade pip --quiet
+# pip 업그레이드:
+#
+python -m pip install --upgrade pip --quiet --break-system-packages
 
 # ARTO 필수 패키지 설치
 info "ARTO 필수 Python 패키지 설치 중..."
-python3 -m pip install \
+python -m pip install \
     fastapi \
     "uvicorn[standard]" \
     httpx \
     openai \
     python-dotenv \
-    --quiet
+    jinja2 \
+    requests \
+    --quiet \
+    --break-system-packages
 
 success "Python 패키지 설치 완료"
 

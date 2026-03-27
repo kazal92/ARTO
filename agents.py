@@ -155,102 +155,102 @@ def stream_chunk(session_dir: str, content: str, progress: int = None):
         chunk_data["progress"] = progress
     return stream_custom(session_dir, chunk_data)
 
-async def run_recon_agent(target_url: str, session_dir: str, headers: Dict = None, enable_deep_recon: bool = True):
+async def run_recon_agent(target_url: str, session_dir: str, headers: Dict = None, enable_deep_recon: bool = True, enable_zap: bool = True, enable_ffuf: bool = True, ffuf_options: str = '', ffuf_wordlist: str = ''):
     yield stream_log(session_dir, f'정찰 시작: {target_url}', 'Recon', 5)
-    
+
     recon_results = {'target': target_url, 'endpoints': [], 'vulns': []}
-    
+
     from zap_client import ZAPClient
     zap = ZAPClient()
     seen_keys = set()
-    
+
     # 1. ZAP Spider
-    yield stream_log(session_dir, '1. OWASP ZAP Spider 탐색 시작...', 'Recon', 10)
-    async for update in run_zap_spider(target_url, session_dir):
-        if is_cancelled(session_dir): break
-        utype = update.get('type')
-        if utype == 'progress':
-            yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
-        elif utype == 'command':
-            yield stream_log(session_dir, update['cmd'], 'Command')
-        elif utype == 'item':
-            # 발견 즉시 로그 출력 (중복 여부 상관없이 가시성 확보)
-            res = update['data']
-            u = res['url']
-            m = res.get('method', 'GET').upper()
-            yield stream_log(session_dir, f"[ZAP] 식별: {m} {u}", 'Recon')
-            
-            key = f"{m}:{u}"
-            if key not in seen_keys and not is_static_file(u):
-                recon_results['endpoints'].append({
-                    "url": u, 
-                    "method": m, 
-                    "source": "zap_spider",
-                    "time": datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                })
-                seen_keys.add(key)
-        elif utype == 'result':
-            # 최종 결과 정리 (item 단계에서 처리되지 않은 것 위주)
-            for res in update['data']:
+    if not enable_zap:
+        yield stream_log(session_dir, '1. ZAP Spider가 비활성화되어 건너뜁니다.', 'Recon', 10)
+    else:
+        yield stream_log(session_dir, '1. OWASP ZAP Spider 탐색 시작...', 'Recon', 10)
+        async for update in run_zap_spider(target_url, session_dir):
+            if is_cancelled(session_dir): break
+            utype = update.get('type')
+            if utype == 'progress':
+                yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
+            elif utype == 'command':
+                yield stream_log(session_dir, update['cmd'], 'Command')
+            elif utype == 'item':
+                res = update['data']
                 u = res['url']
                 m = res.get('method', 'GET').upper()
+                yield stream_log(session_dir, f"[ZAP] 식별: {m} {u}", 'Recon')
                 key = f"{m}:{u}"
                 if key not in seen_keys and not is_static_file(u):
                     recon_results['endpoints'].append({
-                        "url": u, 
-                        "method": m, 
+                        "url": u,
+                        "method": m,
                         "source": "zap_spider",
                         "time": datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
                     })
                     seen_keys.add(key)
-            
-    # ZAP Spider 완료 후 FFuF로 넘어감
-            
+            elif utype == 'result':
+                for res in update['data']:
+                    u = res['url']
+                    m = res.get('method', 'GET').upper()
+                    key = f"{m}:{u}"
+                    if key not in seen_keys and not is_static_file(u):
+                        recon_results['endpoints'].append({
+                            "url": u,
+                            "method": m,
+                            "source": "zap_spider",
+                            "time": datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                        })
+                        seen_keys.add(key)
+
     # 2. FFuF Fuzzing
-    yield stream_log(session_dir, '2. FFuF 디렉토리/파일 퍼징 중...', 'Recon', 50)
-    async for update in run_ffuf(target_url, session_dir, headers):
-        if is_cancelled(session_dir): break
-        utype = update.get('type')
-        if utype == 'progress':
-            yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
-        elif utype == 'command':
-            yield stream_log(session_dir, update['cmd'], 'Command')
-        elif utype == 'item':
-            res = update['data']
-            u = res.get('url')
-            m = res.get('method', 'GET').upper()
-            # 발견 로그 즉시 출력!
-            yield stream_log(session_dir, f'[FFuF] 식별: {m} {u} (상태: {res.get("status")})', 'Recon')
-            
-            key = f"{m}:{u}"
-            if key not in seen_keys and not is_static_file(u):
-                recon_results['endpoints'].append({
-                    'url': u, 
-                    'method': m, 
-                    'source': 'ffuf', 
-                    'status': res.get('status'),
-                    'time': datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                })
-                seen_keys.add(key)
-        elif utype == 'result':
-            for res in update['data']:
+    if not enable_ffuf:
+        yield stream_log(session_dir, '2. ffuf 퍼징이 비활성화되어 건너뜁니다.', 'Recon', 50)
+    else:
+        yield stream_log(session_dir, '2. FFuF 디렉토리/파일 퍼징 중...', 'Recon', 50)
+        async for update in run_ffuf(target_url, session_dir, headers, ffuf_options=ffuf_options, ffuf_wordlist=ffuf_wordlist):
+            if is_cancelled(session_dir): break
+            utype = update.get('type')
+            if utype == 'progress':
+                yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
+            elif utype == 'command':
+                yield stream_log(session_dir, update['cmd'], 'Command')
+            elif utype == 'item':
+                res = update['data']
                 u = res.get('url')
                 m = res.get('method', 'GET').upper()
+                yield stream_log(session_dir, f'[FFuF] 식별: {m} {u} (상태: {res.get("status")})', 'Recon')
                 key = f"{m}:{u}"
                 if key not in seen_keys and not is_static_file(u):
-                    yield stream_log(session_dir, f'[FFuF] 식별: {m} {u} (상태: {res.get("status")})', 'Recon')
                     recon_results['endpoints'].append({
-                        'url': u, 
-                        'method': m, 
-                        'source': 'ffuf', 
+                        'url': u,
+                        'method': m,
+                        'source': 'ffuf',
                         'status': res.get('status'),
                         'time': datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
                     })
                     seen_keys.add(key)
+            elif utype == 'result':
+                for res in update['data']:
+                    u = res.get('url')
+                    m = res.get('method', 'GET').upper()
+                    key = f"{m}:{u}"
+                    if key not in seen_keys and not is_static_file(u):
+                        yield stream_log(session_dir, f'[FFuF] 식별: {m} {u} (상태: {res.get("status")})', 'Recon')
+                        recon_results['endpoints'].append({
+                            'url': u,
+                            'method': m,
+                            'source': 'ffuf',
+                            'status': res.get('status'),
+                            'time': datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                        })
+                        seen_keys.add(key)
 
     # 3. 추가 정찰: FFuF로 발견된 새로운 경로들에 대해 다시 ZAP Spider 실행 (Recursive Recon)
-    if not enable_deep_recon:
-        yield stream_log(session_dir, "[Recon] 재귀적 심층 정찰이 비활성화되어 탐색을 종료합니다.", "Recon", 70)
+    if not enable_ffuf or not enable_deep_recon:
+        if not enable_deep_recon:
+            yield stream_log(session_dir, "[Recon] 재귀적 심층 정찰이 비활성화되어 탐색을 종료합니다.", "Recon", 70)
     else:
         new_ffuf_endpoints = [ep for ep in recon_results['endpoints'] if ep.get('source') == 'ffuf']
         
@@ -475,17 +475,24 @@ async def run_recon_agent(target_url: str, session_dir: str, headers: Dict = Non
 
 async def run_analysis_agent(target_url: str, session_dir: str, recon_data: Dict, headers: Dict = None, ai_config: Dict = None):
     if is_cancelled(session_dir): return
-    
+
     # AI 클라이언트 동적 설정
     local_client = client
     local_model = MODEL_NAME
-    
+
     if ai_config:
         try:
             c_type = ai_config.get('type', 'lmstudio')
             c_url = ai_config.get('base_url', LM_STUDIO_API_URL)
             c_key = ai_config.get('api_key', 'not-needed')
-            c_model = ai_config.get('model', MODEL_NAME)
+            c_model = ai_config.get('model', '') or MODEL_NAME
+
+            # AI 타입에 따른 기본 모델 설정 (비어있거나 Qwen이 아닐 때)
+            if not c_model or c_model.strip() == '':
+                if c_type == 'gemini' or c_type == 'vertex':
+                    c_model = 'gemini-2.0-flash'
+                else:
+                    c_model = MODEL_NAME
             
             # OpenAI 클라이언트 초기화 (로컬 환경의 경우 키가 없을 수 있음)
             local_client = AsyncOpenAI(
@@ -499,17 +506,34 @@ async def run_analysis_agent(target_url: str, session_dir: str, recon_data: Dict
             yield stream_log(session_dir, f"AI 클라이언트 초기화 실패: {str(e)}", "AI")
 
     yield stream_log(session_dir, "정찰 데이터 기반 분석 대상 선별 및 전처리 시작", "AI", 80)
-    
+
+    # 수동 AI 타겟 로드 (있으면 해당 항목만 분석)
+    manual_targets = None
+    manual_targets_path = os.path.join(session_dir, "manual_targets.json")
+    if os.path.exists(manual_targets_path):
+        try:
+            with open(manual_targets_path, "r", encoding="utf-8") as _f:
+                manual_targets = set(json.load(_f))
+            yield stream_log(session_dir, f"[AI] 수동 지정 타겟 {len(manual_targets)}개 로드 - 해당 항목만 분석합니다.", "AI")
+        except Exception:
+            manual_targets = None
+
     all_requests = []
-    
+
     # 1. 정찰 데이터(recon_map.json)로부터 분석 대상 추출
     endpoints = recon_data.get('endpoints', [])
     for ep in endpoints:
         await asyncio.sleep(0)
         req_raw = ep.get('request_raw')
         res_raw = ep.get('response_raw', "")
-        
+
         if not req_raw: continue
+
+        # 수동 타겟이 있으면 해당 항목만 통과
+        if manual_targets is not None:
+            ep_key = f"{ep.get('method', 'GET')}:{ep['url']}"
+            if ep_key not in manual_targets:
+                continue
 
         # 정적 파일 제외
         path = urllib.parse.urlparse(ep['url']).path
@@ -621,12 +645,14 @@ async def run_analysis_agent(target_url: str, session_dir: str, recon_data: Dict
         yield stream_log(session_dir, f"Batch #{i+1} 가동 준비 완료: {len(b)}개의 요청 포함", "AI")
 
     all_findings = []
+    prev_findings_count = 0
     # 💡 누적(Merge) 방식 적용: 기존 ai_findings.json이 존재하면 불러와 초기화합니다.
     old_path = os.path.join(session_dir, "ai_findings.json")
     if os.path.exists(old_path):
         try:
             with open(old_path, 'r', encoding='utf-8') as f:
                 all_findings = json.load(f)
+                prev_findings_count = len(all_findings)
         except:
             all_findings = []
     try:
@@ -724,20 +750,32 @@ async def run_analysis_agent(target_url: str, session_dir: str, recon_data: Dict
 
     finally:
         save_tool_result(session_dir, "ai_findings", all_findings)
-        yield stream_log(session_dir, f"보안 분석 완료: 총 {len(all_findings)}개의 잠재적 취약점이 식별되었습니다.", "AI", 100)
+        new_count = len(all_findings) - prev_findings_count
+        total_count = len(all_findings)
+        if prev_findings_count > 0:
+            yield stream_log(session_dir, f"보안 분석 완료: 이번 스캔에서 {new_count}개 신규 식별 (누적 총 {total_count}개).", "AI", 100)
+        else:
+            yield stream_log(session_dir, f"보안 분석 완료: 총 {total_count}개의 잠재적 취약점이 식별되었습니다.", "AI", 100)
         yield stream_custom(session_dir, {"type": "scan_complete", "data": all_findings})
 
 async def analyze_selected_packets(packets: List[Dict], ai_config: Dict = None, session_dir: str = "") -> List[Dict]:
     """선택된 ZAP 히스토리 패킷들을 AI로 분석합니다."""
     local_client = client
     local_model = MODEL_NAME
-    
+
     if ai_config:
         try:
             c_type = ai_config.get('type', 'lmstudio')
             c_url = ai_config.get('base_url', LM_STUDIO_API_URL)
             c_key = ai_config.get('api_key', 'not-needed')
-            c_model = ai_config.get('model', MODEL_NAME)
+            c_model = ai_config.get('model', '') or MODEL_NAME
+
+            # AI 타입에 따른 기본 모델 설정 (비어있거나 Qwen이 아닐 때)
+            if not c_model or c_model.strip() == '':
+                if c_type == 'gemini' or c_type == 'vertex':
+                    c_model = 'gemini-2.0-flash'
+                else:
+                    c_model = MODEL_NAME
             
             from openai import AsyncOpenAI
             local_client = AsyncOpenAI(

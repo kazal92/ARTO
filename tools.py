@@ -136,14 +136,20 @@ async def run_zap_spider(target_url: str, session_dir: str):
         yield {"type": "progress", "msg": f"[ZAP] 런타임 에러: {str(e)}", "progress": 50}
         yield {"type": "result", "data": []}
 
-async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None):
+async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf_options: str = '', ffuf_wordlist: str = ''):
     """ffuf를 사용하여 숨겨진 디렉토리 및 파일을 스캔합니다."""
     base_url = target_url.rstrip("/")
     target = base_url + "/FUZZ"
-    
-    wordlist = "/usr/share/wordlists/dirb/common.txt"
-    if not os.path.exists(wordlist):
-        wordlist = "/usr/share/wordlists/dirbuster/directory-list-2.3-small.txt"
+
+    arto_wordlist_dir = os.path.join(os.path.dirname(__file__), "wordlist")
+    if ffuf_wordlist:
+        wordlist = os.path.join(arto_wordlist_dir, ffuf_wordlist)
+        if not os.path.exists(wordlist):
+            wordlist = ffuf_wordlist  # 절대경로로 넘긴 경우 대비
+    else:
+        wordlist = os.path.join(arto_wordlist_dir, "wordlist_last.txt")
+        if not os.path.exists(wordlist):
+            wordlist = "/usr/share/wordlists/dirbuster/directory-list-2.3-small.txt"
 
     tool_dir = os.path.join(session_dir, "ffuf")
     response_dir = os.path.join(tool_dir, "responses")
@@ -153,8 +159,8 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None):
     os.makedirs(response_dir, exist_ok=True)
     raw_log_path = os.path.join(tool_dir, "raw_output.txt")
 
-    # -t 50을 추가해 스레드 수 증가
-    cmd_base = f"ffuf -w {wordlist} -u {target} -t 50 -mc 200,204,301,302,307,401,403 -s -json -od {response_dir} -ac"
+    extra_opts = ffuf_options.strip() if ffuf_options else "-t 50 -mc 200,204,301,302,307,401,403,500 -ac"
+    cmd_base = f"ffuf -w {wordlist} -u {target} {extra_opts} -s -json -od {response_dir}"
     if headers:
         for k, v in headers.items():
             cmd_base += f' -H "{k}: {v}"'

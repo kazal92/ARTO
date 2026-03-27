@@ -202,7 +202,8 @@ async function loadRawJson(jsonName) {
                             <button class="btn btn-xs btn-outline-warning" style="font-size:0.65rem;" onclick="copyToClipboard(this)"><i class="fa-solid fa-copy me-1"></i> 복사</button>
                             <button class="btn btn-xs btn-outline-success" style="font-size:0.65rem;" onclick="restoreLogs()"><i class="fa-solid fa-terminal me-1"></i> 로그 복원</button>
                         </div>
-                    </div><pre id="rawJsonPre" style="color: var(--info); white-space: pre-wrap; font-size: 0.8rem; height: calc(100% - 30px); overflow: auto; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;">${content}</pre>`;
+                    </div><pre id="rawJsonPre" style="color: var(--info); white-space: pre-wrap; font-size: 0.8rem; height: calc(100% - 30px); overflow: auto; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 8px;"></pre>`;
+            document.getElementById('rawJsonPre').textContent = content;
         } else {
             viewer.textContent = data.message || "No data";
         }
@@ -287,4 +288,24 @@ window.addEventListener("popstate", (e) => {
 // 페이지 최초 로드 시 라우터 구동
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(initRouter, 600);
+    loadWordlists();
 });
+
+async function loadWordlists() {
+    const select = document.getElementById('ffufWordlist');
+    if (!select) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/wordlists`);
+        const data = await res.json();
+        if (data.status === 'ok' && data.files.length > 0) {
+            select.innerHTML = '';
+            data.files.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                if (f === 'wordlist_last.txt') opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) { console.warn('wordlist load failed', e); }
+}

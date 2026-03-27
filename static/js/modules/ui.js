@@ -106,7 +106,9 @@ function appendLog(msg, source = "System") {
 
     const safeMsg = (msg || "").toString();
     const upperMsg = safeMsg.toUpperCase();
-    if (upperMsg.includes("ERROR") || upperMsg.includes("FAIL") || safeMsg.includes("실패") || safeMsg.includes("치명적")) {
+    const isErrorMsg = (upperMsg.includes("FAIL") || safeMsg.includes("실패") || safeMsg.includes("치명적"))
+        || (upperMsg.includes("ERROR") && !upperMsg.includes("HTTP") && !/\/[^\s]*ERROR[^\s]*/i.test(safeMsg));
+    if (isErrorMsg) {
         badgeClass = "badge-error"; badgeText = "오류"; msgColor = "var(--critical)";
     } else if (upperMsg.includes("DISCOVERY") || upperMsg.includes("FOUND") || upperMsg.includes("식별")) {
         msgColor = "var(--high)";

@@ -21,10 +21,14 @@
 
         <!-- Sidebar Navigation -->
         <div class="sidebar">
-            <div class="sidebar-brand" style="cursor: pointer;"
-                onclick="exitProjectMode('section-dashboard');">
-                <i class="fa-solid fa-shield-halved text-primary"></i>
-                <span>ARTO 2.0</span>
+            <div class="sidebar-brand" style="cursor: pointer;" onclick="exitProjectMode('section-dashboard');">
+                <div class="brand-row">
+                    <i class="fa-solid fa-shield-halved gradient-text" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <div style="font-weight: 800; font-size: 1.15rem; line-height: 1.1;">ARTO</div>
+                        <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 500; letter-spacing: 1px;">v2.0 SECURITY</div>
+                    </div>
+                </div>
             </div>
             <div class="sidebar-menu">
                 <!-- 🌍 전역 메뉴 (Global Hub) -->
@@ -81,6 +85,10 @@
                     style="font-size: 0.75rem; border-color: var(--border-color); color: var(--text-muted);">
                     <i class="fa-solid fa-circle-half-stroke me-1" id="themeIcon"></i> 테마 전환
                 </button>
+                <div class="sidebar-footer-info">
+                    AI-Powered Recon &amp; Analysis<br>
+                    <span style="opacity: 0.6;">ARTO 2.0 &copy; 2025</span>
+                </div>
             </div>
         </div>
 
@@ -124,8 +132,8 @@
                 </div>
                 <!-- 🔍 정렬 UI 추가 -->
                 <div class="d-flex justify-content-end mb-2">
-                    <select class="form-select form-select-sm bg-dark text-light border-secondary"
-                        style="width: 130px; font-weight: 500; font-size: 0.78rem;" id="sortPrecheckProjects"
+                    <select class="form-select form-select-sm"
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);" id="sortPrecheckProjects"
                         onchange="sortAndRenderProjects('precheck')">
                         <option value="date_desc">최신 생성순</option>
                         <option value="date_asc">오래된 생성순</option>
@@ -348,45 +356,61 @@
 
             <!-- 🚀 Dashboard Section -->
             <div id="section-dashboard" class="content-section active">
-                <div class="d-flex align-items-center mb-4">
-                    <i class="fa-solid fa-house text-primary me-2" style="font-size: 1.5rem;"></i>
-                    <h5 class="m-0 fw-bold">ARTO 2.0 Security Center</h5>
+
+                <!-- Hero Banner -->
+                <div class="hero-banner">
+                    <div class="hero-title gradient-text">ARTO 2.0 Security Center</div>
+                    <div class="hero-subtitle">AI 기반 웹 취약점 자동 분석 플랫폼 &mdash; Recon · Analysis · Report</div>
+                    <div class="hero-stats">
+                        <div class="hero-stat">
+                            <span class="hero-stat-num" id="dashTotalProjects">—</span>
+                            <span class="hero-stat-label">총 프로젝트</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-num" id="dashTotalVulns">—</span>
+                            <span class="hero-stat-label">누적 취약점</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-num" id="dashDoneProjects">—</span>
+                            <span class="hero-stat-label">점검 완료</span>
+                        </div>
+                    </div>
                 </div>
 
+                <!-- 빠른 실행 -->
+                <p class="small text-muted fw-bold text-uppercase mb-2" style="letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-bolt me-1" style="color: var(--primary);"></i>빠른 인텔리전스 실행
+                </p>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="quick-action-card qa-scan" onclick="switchSection('section-newscan')">
+                            <span class="quick-action-icon"><i class="fa-solid fa-shield-virus text-success"></i></span>
+                            <div class="quick-action-title">신규 취약점 스캔</div>
+                            <div class="quick-action-desc">웹 타겟 대상 AI 심층 자동 점검</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="quick-action-card qa-alive" onclick="switchSection('section-alive')">
+                            <span class="quick-action-icon"><i class="fa-solid fa-bolt text-info"></i></span>
+                            <div class="quick-action-title">Alive Check 가동</div>
+                            <div class="quick-action-desc">다수 도메인 생존 여부 일괄 판단</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="quick-action-card qa-dork" onclick="switchSection('section-dork')">
+                            <span class="quick-action-icon"><i class="fa-brands fa-google text-warning"></i></span>
+                            <div class="quick-action-title">Google Dork 탐색</div>
+                            <div class="quick-action-desc">OSINT 기반 정보 노출 자동 탐지</div>
+                        </div>
+                    </div>
+                </div>
 
-                <!-- ⚡ 빠른 실행 가이드 -->
-                <h6 class="fw-bold mb-3"><i class="fa-solid fa-bolt text-warning me-2"></i>빠른 인텔리전스 실행</h6>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
-                            onclick="switchSection('section-newscan')"
-                            onmouseover="this.style.transform='translateY(-3px)'"
-                            onmouseout="this.style.transform='translateY(0)'">
-                            <i class="fa-solid fa-shield-virus text-success mb-2" style="font-size: 2rem;"></i>
-                            <h6 class="fw-bold m-0">신규 취약점 스캔</h6>
-                            <p class="small text-muted mt-2 mb-0">웹 타겟 대상 AI 심층 점검</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
-                            onclick="switchSection('section-alive')"
-                            onmouseover="this.style.transform='translateY(-3px)'"
-                            onmouseout="this.style.transform='translateY(0)'">
-                            <i class="fa-solid fa-bolt text-info mb-2" style="font-size: 2rem;"></i>
-                            <h6 class="fw-bold m-0">Alive Check 가동</h6>
-                            <p class="small text-muted mt-2 mb-0">다수 도메인 생존 여부 일괄 판단</p>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="glass-card text-center" style="cursor: pointer; transition: transform 0.2s;"
-                            onclick="switchSection('section-dork')"
-                            onmouseover="this.style.transform='translateY(-3px)'"
-                            onmouseout="this.style.transform='translateY(0)'">
-                            <i class="fa-brands fa-google text-warning mb-2" style="font-size: 2rem;"></i>
-                            <h6 class="fw-bold m-0">Google Dork 탐색</h6>
-                            <p class="small text-muted mt-2 mb-0">OSINT 기반 정보 노출 탐지</p>
-                        </div>
-                    </div>
+                <!-- 최근 프로젝트 미리보기 -->
+                <p class="small text-muted fw-bold text-uppercase mb-2" style="letter-spacing: 0.5px;">
+                    <i class="fa-solid fa-clock-rotate-left me-1" style="color: var(--primary);"></i>최근 프로젝트
+                </p>
+                <div id="dashRecentProjects" class="row g-2">
+                    <div class="col-12 text-muted small" style="padding: 1rem 0; opacity: 0.5;">불러오는 중...</div>
                 </div>
             </div>
 
@@ -418,7 +442,15 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="m-0 fw-bold">취약점 스캔 프로젝트 목록</h5>
+                    <div class="section-header mb-0">
+                        <div class="section-header-icon" style="background: rgba(234,179,8,0.1);">
+                            <i class="fa-solid fa-folder-tree text-warning"></i>
+                        </div>
+                        <div class="section-header-text">
+                            <h5>취약점 스캔 프로젝트 목록</h5>
+                            <p>생성된 스캔 워크스페이스 전체 목록</p>
+                        </div>
+                    </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
                             onclick="deleteSelectedProjects()">
@@ -432,8 +464,8 @@
                 </div>
                 <!-- 🔍 정렬 UI 추가 -->
                 <div class="d-flex justify-content-end mb-2">
-                    <select class="form-select form-select-sm bg-dark text-light border-secondary"
-                        style="width: 130px; font-weight: 500; font-size: 0.78rem;" id="sortProjects"
+                    <select class="form-select form-select-sm"
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);" id="sortProjects"
                         onchange="sortAndRenderProjects('scan')">
                         <option value="date_desc">최신 생성순</option>
                         <option value="date_asc">오래된 생성순</option>
@@ -446,7 +478,15 @@
                 </div>
             </div>
             <div id="section-overview" class="content-section">
-                <h5 class="mb-4 fw-bold">스캔 대상</h5>
+                <div class="section-header mb-4">
+                    <div class="section-header-icon" style="background: rgba(234,179,8,0.1);">
+                        <i class="fa-solid fa-chart-pie text-warning"></i>
+                    </div>
+                    <div class="section-header-text">
+                        <h5>스캔 대상</h5>
+                        <p>타겟 설정 · AI 엔진 · 실시간 로그 콘솔</p>
+                    </div>
+                </div>
 
 
                 <!-- 🚀 스캔 제어 및 환경 설정 패널 -->
@@ -461,6 +501,9 @@
                             </button>
                             <button class="btn btn-sm btn-success" id="startBtn" onclick="startScan()">
                                 <i class="fa-solid fa-play me-1"></i> 스캔 시작
+                            </button>
+                            <button class="btn btn-sm btn-danger" id="stopBtn" onclick="stopScan()" style="display:none;">
+                                <i class="fa-solid fa-stop me-1"></i> 정지
                             </button>
                         </div>
                     </div>
@@ -478,7 +521,7 @@
                             <div class="col-md-6">
                                 <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
                                 <select id="aiType" class="form-select"
-                                    style="background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
                                     onchange="toggleAiSettings(true)">
                                     <option value="lmstudio">LM Studio (Local)</option>
                                     <option value="gemini">Google Gemini AI</option>
@@ -494,23 +537,19 @@
                                         <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
                                     </button>
                                 </div>
-                                <!-- LM Studio용 텍스트 입력박스 -->
                                 <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b">
-
-                                <!-- LM Studio용 모델 드롭다운 셀렉트 -->
                                 <select id="aiModelLmSelect" class="form-select mt-1"
-                                    style="display:none; background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
                                     onchange="document.getElementById('aiModel').value = this.value">
                                 </select>
-
-                                <!-- Gemini용 선택형 드롭다운 (26년 3월 기준 최신 모델) -->
                                 <select id="aiModelSelect" class="form-select"
-                                    style="display:none; background: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);">
-                                    <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-                                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (경량 고성능)</option>
-                                    <option value="gemini-3-pro">gemini-3-pro (에이전트 특화)</option>
-                                    <option value="gemini-3.1-pro">gemini-3.1-pro (최신 추론형)</option>
-                                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                    <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
+                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
                                 </select>
                             </div>
                         </div>
@@ -522,7 +561,7 @@
                             </div>
                             <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">Gemini API Key</label>
-                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력">
+                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="fetchGeminiModels()">
                             </div>
                             <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
@@ -540,14 +579,72 @@
                             style="resize: vertical; min-height: 60px;"
                             placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."></textarea>
 
-                        <div class="form-check form-switch mb-3 d-flex align-items-center">
-                            <input class="form-check-input" type="checkbox" id="enableDeepRecon" checked
-                                style="cursor: pointer; width: 2.2rem; height: 1.1rem; background-color: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); margin: 0; transition: transform 0.2s, box-shadow 0.2s;"
-                                onmouseover="this.style.boxShadow='0 0 6px rgba(139, 92, 246, 0.4)';"
-                                onmouseout="this.style.boxShadow='none';">
-                            <label class="form-check-label small fw-bold text-muted ms-2" for="enableDeepRecon"
-                                style="cursor: pointer; font-size: 0.82rem;">
-                                FFuF 재귀적 심층 정찰 활성화
+                        <div class="d-flex gap-2 mb-2">
+                            <div style="flex:0 0 22%;">
+                                <label class="form-label text-muted small fw-bold">ffuf 워드리스트</label>
+                                <select id="ffufWordlist" class="form-select" style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.95rem; cursor:pointer;">
+                                    <option value="wordlist_last.txt">wordlist_last.txt</option>
+                                </select>
+                            </div>
+                            <div style="flex:1;">
+                                <label class="form-label text-muted small fw-bold">ffuf 고급 옵션</label>
+                                <input type="text" id="ffufOptions" class="glass-input w-100"
+                                    value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
+                                    placeholder="-t 50 -mc 200,301,302,401,403 -ac -ic">
+                            </div>
+                        </div>
+
+                        <label class="form-label text-muted small fw-bold mb-2">스캔 모듈 선택</label>
+                        <style>
+                            .module-toggle { display: none; }
+                            .module-btn {
+                                display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+                                padding: 6px 14px; border-radius: 20px; cursor: pointer;
+                                font-size: 0.78rem; font-weight: 600; user-select: none;
+                                line-height: 1; vertical-align: middle;
+                                border: 1px solid rgba(255,255,255,0.1);
+                                background: rgba(255,255,255,0.04);
+                                color: var(--text-muted);
+                                transition: all 0.18s ease;
+                            }
+                            .module-btn i { line-height: 1; display: flex; align-items: center; }
+                            .module-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
+                            .module-toggle:checked + .module-btn {
+                                background: rgba(99,102,241,0.15);
+                                border-color: rgba(99,102,241,0.5);
+                                color: var(--text-main);
+                                box-shadow: 0 0 0 1px rgba(99,102,241,0.3);
+                            }
+                            .module-toggle:disabled + .module-btn {
+                                opacity: 0.35; cursor: not-allowed; pointer-events: none;
+                            }
+                        </style>
+                        <div class="d-flex flex-wrap gap-2 mb-3" style="align-items: center;">
+                            <input class="module-toggle" type="checkbox" id="enableZapSpider" checked>
+                            <label class="module-btn" for="enableZapSpider">
+                                <i class="fa-solid fa-spider text-info"></i> ZAP Spider
+                            </label>
+
+                            <input class="module-toggle" type="checkbox" id="enableFfuf" checked
+                                onchange="const dr=document.getElementById('enableDeepRecon'); dr.disabled=!this.checked; if(!this.checked) dr.checked=false; dr.dispatchEvent(new Event('change'));">
+                            <label class="module-btn" for="enableFfuf">
+                                <i class="fa-solid fa-hammer" style="color:#f59e0b;"></i> ffuf 퍼징
+                            </label>
+
+                            <input class="module-toggle" type="checkbox" id="enableDeepRecon" checked>
+                            <label class="module-btn" for="enableDeepRecon">
+                                <i class="fa-solid fa-layer-group" style="color:#a78bfa;"></i> ffuf 재귀 탐색
+                            </label>
+
+                            <input class="module-toggle" type="checkbox" id="enableAiAnalysis" checked>
+                            <label class="module-btn" for="enableAiAnalysis">
+                                <i class="fa-solid fa-brain text-success"></i> AI 분석
+                            </label>
+
+                            <input class="module-toggle" type="checkbox" id="enableNuclei" disabled>
+                            <label class="module-btn" for="enableNuclei">
+                                <i class="fa-solid fa-atom text-danger"></i> Nuclei
+                                <span class="badge bg-secondary ms-1" style="font-size:0.58rem; font-weight:500;">준비중</span>
                             </label>
                         </div>
 
@@ -613,7 +710,17 @@
                             </div>
                         </div>
                     </div>
-                    <div class="console-stream" id="logWindow" style="height: 320px;">
+                    <div style="display:flex; justify-content:flex-end; padding: 4px 8px 0;">
+                        <button onclick="
+                            document.getElementById('logWindow').innerHTML='';
+                            const sid = (typeof currentProject !== 'undefined' && currentProject?.id) || localStorage.getItem('currentSessionId');
+                            if (sid) fetch(API_BASE + '/api/session/' + sid + '/clear_log', {method:'POST'});
+                        " class="btn btn-xs btn-outline-secondary"
+                            style="font-size:0.65rem; padding:2px 8px; opacity:0.6;">
+                            <i class="fa-solid fa-trash-can me-1"></i>로그 초기화
+                        </button>
+                    </div>
+                    <div class="console-stream" id="logWindow" style="height: 300px;">
                         <div style="color: #10b981;">[System] Security Engine online. Awaiting task.</div>
                     </div>
                 </div>
@@ -622,20 +729,25 @@
             <!-- 2. Endpoints Section -->
             <div id="section-endpoints" class="content-section">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-circle-nodes text-primary" style="font-size: 1.5rem;"></i>
-                        <h5 class="fw-bold m-0">엔드포인트 맵</h5>
+                    <div class="section-header mb-0">
+                        <div class="section-header-icon" style="background: rgba(99,102,241,0.1);">
+                            <i class="fa-solid fa-circle-nodes" style="color: #818cf8;"></i>
+                        </div>
+                        <div class="section-header-text">
+                            <h5>엔드포인트 맵</h5>
+                            <p>크롤링 결과 · ZAP 히스토리 · AI 분석 대상</p>
+                        </div>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
-                            <i class="fa-solid fa-trash-can me-1"></i>ZAP 초기화
+                            <i class="fa-solid fa-trash-can me-1"></i>히스토리 초기화
                         </button>
                         <button class="btn btn-sm btn-outline-info" onclick="loadZapHistory()">
-                            <i class="fa-solid fa-bolt me-1"></i>ZAP 히스토리 로드
+                            <i class="fa-solid fa-bolt me-1"></i>히스토리 로드
                         </button>
-                        <button class="btn btn-sm btn-success" id="btnAnalyzeEndpoints"
-                            onclick="analyzeSelectedEndpoints()" disabled>
-                            <i class="fa-solid fa-brain me-1"></i>선택 항목 AI 심층 분석 (0)
+                        <button class="btn btn-sm btn-outline-primary" id="btnSetAiTarget"
+                            onclick="setSelectedAsAiTarget()" disabled>
+                            <i class="fa-solid fa-crosshairs me-1"></i>AI 타겟 지정 (0)
                         </button>
                     </div>
                 </div>
@@ -694,8 +806,8 @@
                                     <th></th>
                                     <th></th>
                                     <th>
-                                        <select id="filterAiTarget" onchange="applyFilters()"
-                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                        <select id="filterAiTarget" class="form-select" onchange="applyFilters()"
+                                            style="background-color: var(--bg-darker); border-color: var(--border-color); color: var(--text-main); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
                                             <option value="">All</option>
                                             <option value="yes">Targeted</option>
                                             <option value="no">Skipped</option>
@@ -766,7 +878,15 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="m-0 fw-bold">감지된 보안 취약점 목록</h5>
+                    <div class="section-header mb-0">
+                        <div class="section-header-icon" style="background: rgba(239,68,68,0.1);">
+                            <i class="fa-solid fa-shield-virus text-danger"></i>
+                        </div>
+                        <div class="section-header-text">
+                            <h5>감지된 보안 취약점 목록</h5>
+                            <p>AI 분석 결과 · 신뢰도 기반 분류</p>
+                        </div>
+                    </div>
                     <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
                         onclick="deleteSelectedCards()">
                         <i class="fa-solid fa-trash-can me-1"></i> 선택 삭제

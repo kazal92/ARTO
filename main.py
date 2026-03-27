@@ -58,7 +58,12 @@ class ScanRequest(BaseModel):
     project_name: str = "" 
     session_id: str = "" 
     project_type: str = "scan"
-    enable_deep_recon: bool = True # 재귀 탐색 제어 플래그
+    ffuf_options: str = "-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
+    ffuf_wordlist: str = ""
+    enable_zap_spider: bool = True  # ZAP Spider 실행 여부
+    enable_ffuf: bool = True        # ffuf 퍼징 실행 여부
+    enable_deep_recon: bool = True  # ffuf 재귀 탐색 여부
+    enable_ai_analysis: bool = True # AI 취약점 분석 실행 여부
 
 class ProxyRequest(BaseModel):
     proxy_host: str
@@ -102,10 +107,11 @@ async def index(request: Request):
         with open(report_path, "r", encoding="utf-8") as f:
             report_content = f.read()
             
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "existing_report": report_content
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"existing_report": report_content}
+    )
 
 @app.post("/api/project/create")
 async def create_project(req: ScanRequest):
@@ -200,23 +206,58 @@ async def start_scan(req: ScanRequest, request: Request):
 
         # 2. 백그라운드 스캔 실행 (새로운 스캔인 경우에만)
         if not is_resume and session_dir not in ACTIVE_SCANS:
+            ACTIVE_SCANS.add(session_dir)
             async def run_scan_task(ai_config: dict):
                 try:
                     # 📌 .env 기반 Gemini API Key 폴백 제거됨
 
-                    ACTIVE_SCANS.add(session_dir)
                     recon_data = None
-                    async for update in run_recon_agent(req.target_url, session_dir, req.headers, enable_deep_recon=getattr(req, 'enable_deep_recon', True)):
-                        if "recon_result" in update:
-                            try:
-                                data = json.loads(update)
-                                recon_data = data.get("data")
-                            except: pass
-                        await asyncio.sleep(0)
-                    
-                    if recon_data and not agents.is_cancelled(session_dir):
+
+                    ai_only_mode = (
+                        not getattr(req, 'enable_zap_spider', True) and
+                        not getattr(req, 'enable_ffuf', True) and
+                        getattr(req, 'enable_ai_analysis', True)
+                    )
+
+                    if not ai_only_mode:
+                        # 풀스캔 시 이전 수동 타겟 초기화
+                        manual_targets_path = os.path.join(session_dir, "manual_targets.json")
+                        if os.path.exists(manual_targets_path):
+                            os.remove(manual_targets_path)
+
+                    if ai_only_mode:
+                        # AI 분석만 모드: 기존 recon_map.json 로드
+                        recon_map_path = os.path.join(session_dir, "recon_map.json")
+                        if os.path.exists(recon_map_path):
+                            with open(recon_map_path, "r", encoding="utf-8") as f:
+                                recon_data = json.load(f)
+                            agents.stream_log(session_dir, f"[AI Only] 기존 정찰 데이터 로드 완료 ({len(recon_data.get('endpoints', []))}개 엔드포인트)", "System", 10)
+                        else:
+                            agents.stream_log(session_dir, "[AI Only] 기존 정찰 데이터가 없습니다. 먼저 정찰 스캔을 실행하세요.", "System", 100)
+                            agents.stream_custom(session_dir, {"type": "scan_complete", "data": []})
+                            return
+                    else:
+                        async for update in run_recon_agent(
+                            req.target_url, session_dir, req.headers,
+                            enable_deep_recon=getattr(req, 'enable_deep_recon', True),
+                            enable_zap=getattr(req, 'enable_zap_spider', True),
+                            enable_ffuf=getattr(req, 'enable_ffuf', True),
+                            ffuf_options=getattr(req, 'ffuf_options', ''),
+                            ffuf_wordlist=getattr(req, 'ffuf_wordlist', '')
+                        ):
+                            if "recon_result" in update:
+                                try:
+                                    data = json.loads(update)
+                                    recon_data = data.get("data")
+                                except: pass
+                            await asyncio.sleep(0)
+
+                    if recon_data and not agents.is_cancelled(session_dir) and getattr(req, 'enable_ai_analysis', True):
                         async for update in run_analysis_agent(req.target_url, session_dir, recon_data, req.headers, ai_config):
                             await asyncio.sleep(0)
+                    elif not getattr(req, 'enable_ai_analysis', True):
+                        agents.stream_log(session_dir, "AI 분석이 비활성화되어 스캔을 완료합니다.", "System", 100)
+                        agents.stream_custom(session_dir, {"type": "scan_complete", "data": []})
                 except Exception as e:
                     agents.stream_log(session_dir, f"Background Scan Error: {str(e)}", "System")
                 finally:
@@ -269,6 +310,15 @@ async def save_findings(req: SaveFindingsRequest):
         return {"status": "success", "message": "취약점 목록이 성공적으로 저장되었습니다."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.get("/api/wordlists")
+async def get_wordlists():
+    """wordlist 폴더 내 파일 목록 반환"""
+    wordlist_dir = os.path.join(os.path.dirname(__file__), "wordlist")
+    if not os.path.exists(wordlist_dir):
+        return {"status": "ok", "files": []}
+    files = sorted([f for f in os.listdir(wordlist_dir) if os.path.isfile(os.path.join(wordlist_dir, f))])
+    return {"status": "ok", "files": files}
 
 @app.get("/api/history/list")
 async def get_history_list():
@@ -452,12 +502,28 @@ async def analyze_packets(req: PacketAnalysisRequest):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/zap/clear")
-async def clear_zap():
+async def clear_zap(request: Request):
     """ZAP 히스토리 및 사이트 트리 초기화 API"""
     zap = ZAPClient()
     try:
         await zap.clear_zap_history()
-        return {"status": "success", "message": "ZAP history /  Site tree 초기화 완료."}
+
+        # 현재 세션의 recon_map.json도 초기화
+        body = {}
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+        session_id = body.get("session_id") or ""
+        if session_id:
+            session_dir = agents.find_session_dir(session_id)
+            if session_dir:
+                recon_map_path = os.path.join(session_dir, "recon_map.json")
+                if os.path.exists(recon_map_path):
+                    with open(recon_map_path, "w", encoding="utf-8") as f:
+                        json.dump({"target": "", "endpoints": []}, f)
+
+        return {"status": "success", "message": "ZAP history / Site tree 초기화 완료."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -580,6 +646,25 @@ async def dork_check_stream():
 
     return StreamingResponse(dork_stream_generator(), media_type="text/event-stream")
 
+@app.post("/api/session/{session_id}/clear_log")
+async def clear_session_log(session_id: str):
+    session_dir = agents.find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "message": "세션을 찾을 수 없습니다."}
+    log_file = os.path.join(session_dir, "scan_log.jsonl")
+    if os.path.exists(log_file):
+        open(log_file, "w").close()
+    return {"status": "ok"}
+
+@app.post("/api/session/{session_id}/manual_targets")
+async def save_manual_targets(session_id: str, body: dict):
+    """수동 AI 타겟 지정 저장"""
+    session_dir = agents.find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "message": "세션을 찾을 수 없습니다."}
+    agents.save_tool_result(session_dir, "manual_targets", body.get("targets", []))
+    return {"status": "ok"}
+
 @app.post("/api/scan/stop")
 async def stop_scan(req: ScanRequest):
     """실행 중인 취약점 스캔 중지"""
@@ -629,7 +714,7 @@ async def catch_all(request: Request, full_path: str):
     if full_path.startswith("api/"):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="API route not found")
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html", context={})
 
 if __name__ == "__main__":
     import uvicorn

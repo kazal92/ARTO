@@ -233,12 +233,46 @@ function toggleAllEndpoints(masterCheckbox) {
 }
 
 function toggleMainAnalyzeBtn() {
-    const checked = selectedEndpointsSet.size;
-    const btn = document.getElementById('btnAnalyzeEndpoints');
-    if (btn) {
-        btn.innerHTML = `<i class="fa-solid fa-brain me-1"></i>선택 항목 AI 심층 분석 (${checked})`;
-        btn.disabled = (checked === 0);
+    const total = selectedEndpointsSet.size;
+    const allAreTargets = total > 0 && [...selectedEndpointsSet].every(key => aiTargetUrls.has(key));
+
+    const targetBtn = document.getElementById('btnSetAiTarget');
+    if (targetBtn) {
+        if (allAreTargets) {
+            targetBtn.innerHTML = `<i class="fa-solid fa-xmark me-1"></i>타겟 제거 (${total})`;
+            targetBtn.className = 'btn btn-sm btn-outline-danger';
+        } else {
+            targetBtn.innerHTML = `<i class="fa-solid fa-crosshairs me-1"></i>AI 타겟 지정 (${total})`;
+            targetBtn.className = 'btn btn-sm btn-outline-primary';
+        }
+        targetBtn.disabled = (total === 0);
     }
+}
+
+async function setSelectedAsAiTarget() {
+    if (selectedEndpointsSet.size === 0) return;
+
+    const allAreTargets = [...selectedEndpointsSet].every(key => aiTargetUrls.has(key));
+
+    if (allAreTargets) {
+        selectedEndpointsSet.forEach(key => aiTargetUrls.delete(key));
+    } else {
+        selectedEndpointsSet.forEach(key => aiTargetUrls.add(key));
+    }
+
+    selectedEndpointsSet.clear();
+    renderEndpoints(allEndpoints, true);
+    toggleMainAnalyzeBtn();
+
+    const sessionId = (typeof currentProject !== 'undefined' && currentProject?.id)
+        || localStorage.getItem('currentSessionId');
+    if (!sessionId) return;
+
+    await fetch(`${API_BASE}/api/session/${sessionId}/manual_targets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets: [...aiTargetUrls] })
+    });
 }
 
 // ── 엔드포인트 상세 모달 ───────────────────────────────────

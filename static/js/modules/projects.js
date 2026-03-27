@@ -7,6 +7,59 @@ let globalSessions = [];
 let globalPrecheckSessions = [];
 let currentProject = { id: null, name: '프로젝트 미선택', target: '' };
 
+function syncDashboardStats() {
+    const el = (id) => document.getElementById(id);
+    if (el('dashTotalProjects')) el('dashTotalProjects').innerText = globalStats.totalProjects;
+    if (el('dashTotalVulns'))    el('dashTotalVulns').innerText    = globalStats.totalVulns;
+    if (el('dashDoneProjects'))  el('dashDoneProjects').innerText  = globalStats.doneProjects;
+}
+
+function renderDashRecentProjects(sessions) {
+    const container = document.getElementById('dashRecentProjects');
+    if (!container) return;
+    const recent = sessions.slice(0, 3);
+    if (!recent.length) {
+        container.innerHTML = '<div class="col-12 text-muted small" style="opacity:0.5;">생성된 프로젝트가 없습니다.</div>';
+        return;
+    }
+    container.innerHTML = recent.map(s => {
+        const parts = s.split('_');
+        const name = parts[0] || s;
+        let dateStr = '';
+        if (parts.length >= 3) {
+            const d = parts[parts.length - 2];
+            const t = parts[parts.length - 1];
+            if (d.length === 8 && t.length === 6)
+                dateStr = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)} ${t.substring(0,2)}:${t.substring(2,4)}`;
+        }
+        return `
+            <div class="col-md-4">
+                <div class="glass-card py-2 px-3" style="cursor:pointer; border-radius:10px; transition:all 0.18s;"
+                     onclick="selectProject('${s}')"
+                     onmouseover="this.style.borderColor='var(--primary)'; this.style.transform='translateY(-2px)';"
+                     onmouseout="this.style.borderColor=''; this.style.transform='';">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fa-solid fa-folder-open text-warning" style="font-size:0.9rem;"></i>
+                        <span class="fw-bold text-truncate" style="font-size:0.9rem;" id="dash-title-${s}">${name}</span>
+                    </div>
+                    <div class="small text-muted text-truncate" style="font-size:0.75rem;">
+                        <i class="fa-solid fa-clock me-1" style="font-size:0.7rem;"></i>${dateStr || 'N/A'}
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+
+    recent.forEach(s => {
+        fetch(`${API_BASE}/api/history/${s}/json/project_info`).then(r => r.json()).then(d => {
+            if (d.status === 'success') {
+                const info = JSON.parse(d.content);
+                const el = document.getElementById(`dash-title-${s}`);
+                if (el && info.project_name) el.innerText = info.project_name;
+            }
+        }).catch(() => {});
+    });
+}
+
 function renderProjectGrid(sessions, targetGridId = 'projectsGrid', projType = 'scan') {
     const grid = document.getElementById(targetGridId);
     if (!grid) return;
@@ -164,6 +217,7 @@ function renderProjectGrid(sessions, targetGridId = 'projectsGrid', projType = '
                     globalStats.totalVulns += (high + med + low);
                     const gVulns = document.getElementById('globalTotalVulns');
                     if (gVulns) gVulns.innerText = globalStats.totalVulns;
+                    syncDashboardStats();
                 }
 
                 let autoStatus = "running";
@@ -176,6 +230,7 @@ function renderProjectGrid(sessions, targetGridId = 'projectsGrid', projType = '
                         globalStats.doneProjects++;
                         const gDone = document.getElementById('globalDoneProjects');
                         if (gDone) gDone.innerText = globalStats.doneProjects;
+                        syncDashboardStats();
                     }
                 }
 
@@ -185,6 +240,7 @@ function renderProjectGrid(sessions, targetGridId = 'projectsGrid', projType = '
                     globalStats.doneProjects++;
                     const gDone = document.getElementById('globalDoneProjects');
                     if (gDone) gDone.innerText = globalStats.doneProjects;
+                    syncDashboardStats();
                 }
 
                 const statusStyles = {
@@ -378,11 +434,13 @@ async function loadHistoryList(skipSwitch = false) {
             if (data.sessions) {
                 globalSessions = data.sessions;
                 renderProjectGrid(data.sessions, 'projectsGrid', 'scan');
+                renderDashRecentProjects(data.sessions);
             }
             if (data.precheck_sessions) {
                 globalPrecheckSessions = data.precheck_sessions;
                 renderProjectGrid(data.precheck_sessions, 'precheckProjectsGrid', 'precheck');
             }
+            syncDashboardStats();
 
             const savedSession = localStorage.getItem('currentSessionId');
             const target = window.initialTargetSec || null;
@@ -402,7 +460,7 @@ async function loadHistoryList(skipSwitch = false) {
 async function startNewScanWizard() {
     const name = document.getElementById('newProjectName').value;
     if (!name) return alert("프로젝트 명칭을 입력해 주세요.");
-    const target = "http://172.22.165.96:8002";
+    const target = "http://172.27.50.37:8002/";
 
     try {
         const res = await fetch(`${API_BASE}/api/project/create`, {
