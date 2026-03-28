@@ -8,6 +8,8 @@
 
 set -euo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
+
 # ── 색상 ────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
@@ -51,10 +53,12 @@ step "1/6  시스템 패키지 업데이트"
 
 $SUDO apt-get update -y -qq
 $SUDO apt-get install -y -qq \
-    ca-certificates curl gnupg lsb-release \
+    ca-certificates curl gnupg gnupg2 lsb-release \
     git wget unzip build-essential \
     python3 python3-pip python3-venv \
     iptables 2>/dev/null || true
+
+GPG_CMD=$(command -v gpg2 || command -v gpg || echo gpg)
 
 success "시스템 패키지 완료"
 
@@ -73,11 +77,17 @@ else
     $SUDO install -m 0755 -d /etc/apt/keyrings
 
     curl -fsSL https://download.docker.com/linux/debian/gpg \
-        | $SUDO gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        | $SUDO $GPG_CMD --dearmor -o /etc/apt/keyrings/docker.gpg
     $SUDO chmod a+r /etc/apt/keyrings/docker.gpg
 
+    # Kali는 lsb_release -cs가 "kali-rolling"을 반환하므로 Debian 코드명으로 변환
+    DISTRO_CS=$(lsb_release -cs)
+    if [[ "$DISTRO_CS" == "kali-rolling" || "$DISTRO_CS" == kali* ]]; then
+        DISTRO_CS="bookworm"
+    fi
+
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+https://download.docker.com/linux/debian ${DISTRO_CS} stable" \
         | $SUDO tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     $SUDO apt-get update -y -qq
