@@ -25,110 +25,65 @@
 
 ## 🚀 빠른 시작
 
-### ⚡ 원클릭 설치 (setup.sh)
+### ⚡ 클론 후 원클릭 설치
 
 ```bash
-# 실행 권한 부여 후 실행
+# 1. 저장소 클론
+git clone https://github.com/<your-org>/ARTO.git
+cd ARTO
+
+# 2. 설치 스크립트 실행 (sudo 필요)
 chmod +x setup.sh && sudo ./setup.sh
+
+# 3. 실행
+./run_app.sh
 ```
 
-> `setup.sh` 실행 시 **Docker · ZAP 이미지 · FFuF · Python 패키지**를 모두 자동 설정합니다.
+> 접속 주소: **http://localhost:8001**
+
+`setup.sh`가 자동으로 처리하는 항목:
+
+| 단계 | 내용 |
+|------|------|
+| 1 | 시스템 패키지 업데이트 (`curl`, `git`, `python3-venv` 등) |
+| 2 | Docker CE 설치 + WSL2 iptables legacy 설정 + 데몬 시작 |
+| 3 | OWASP ZAP Docker 이미지 다운로드 (`~1GB`) |
+| 4 | FFuF 최신 릴리즈 자동 다운로드 |
+| 5 | Python 가상환경(`.venv`) 생성 + 의존성 설치 |
+| 6 | `run_app.sh` 가상환경 python 사용하도록 구성 |
 
 ---
 
-### 사전 요구사항
+### WSL2 참고사항
 
-- Python 3.10+
-- Docker (OWASP ZAP 실행용)
-- FFuF (`ffuf` 바이너리가 PATH에 있어야 함)
-
-> 위 요구사항이 설치되지 않았다면 아래 단계적 가이드를 따르세요.
-
----
-
-### 1️⃣ Docker 설치 (Kali Linux / Debian 계열)
+WSL2 환경은 부팅 시 Docker가 자동으로 시작되지 않습니다. `run_app.sh`는 Docker 데몬이 꺼져 있으면 자동으로 시작을 시도하지만, 수동으로 시작하려면:
 
 ```bash
-# 기존 구버전 제거
-sudo apt remove docker docker-engine docker.io containerd runc -y
+sudo service docker start
+```
 
-# 의존성 및 GPG 키 설치
-sudo apt update
-sudo apt install -y ca-certificates curl gnupg lsb-release
+docker 그룹 즉시 적용 (재로그인 없이):
 
-# Docker 공식 저장소 추가
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/debian $(lsb_release -cs) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Docker Engine 설치
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io
-
-# 현재 사용자를 docker 그룹에 추가 (sudo 없이 실행 가능)
-sudo usermod -aG docker $USER && newgrp docker
-
-# 설치 확인
-docker --version
+```bash
+newgrp docker
 ```
 
 ---
 
-### 2️⃣ OWASP ZAP 이미지 다운로드
+### ZAP 수동 실행 (참고용)
 
 ```bash
-# ZAP Stable 이미지 사전 다운로드 (약 1GB)
-docker pull ghcr.io/zaproxy/zaproxy:stable
-```
-
----
-
-### 3️⃣ ZAP 수동 실행 (개별 기동 시)
-
-```bash
-# ZAP 데몬 모드 실행 (API 키 인증 비활성화)
+# ZAP 데몬 모드 실행
 docker run --net=host --name zap_main -d \
   ghcr.io/zaproxy/zaproxy:stable \
   zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
 
-# 약 15초 대기 후 동작 확인
+# 동작 확인
 sleep 15 && curl -s http://127.0.0.1:8080/JSON/core/view/version/
 
-# 컨테이너 중지 및 삭제
+# 정리
 docker stop zap_main && docker rm zap_main
 ```
-
-> ZAP API: **http://127.0.0.1:8080**
-> `api.disablekey=true` 옵션으로 API 키 인증을 비활성화하여 ARTO와 연동합니다.
-
----
-
-### 4️⃣ ARTO 의존성 설치
-
-```bash
-pip install fastapi uvicorn httpx openai python-dotenv
-```
-
----
-
-### 5️⃣ 실행
-
-```bash
-# ZAP + 애플리케이션 한 번에 실행 (권장)
-./run_app.sh
-
-# 또는 개별 실행
-docker run --net=host --name zap_main -d \
-  ghcr.io/zaproxy/zaproxy:stable \
-  zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
-sleep 15
-python3 main.py
-```
-
-> 기본 접속 주소: **http://localhost:8001**
 
 ---
 
