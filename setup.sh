@@ -232,7 +232,10 @@ success "Python 패키지 설치 완료 (가상환경: $VENV_DIR)"
 # ══════════════════════════════════════════════════════════
 step "6/6  실행 스크립트 구성"
 
-# run_app.sh가 .venv python을 사용하도록 업데이트
+# run_app.sh가 이미 존재하면 덮어쓰지 않음 (사용자 수정 보호)
+if [[ -f "$ARTO_DIR/run_app.sh" ]]; then
+    info "run_app.sh가 이미 존재합니다. 덮어쓰기를 건너뜁니다. (재생성하려면 파일을 삭제 후 다시 실행)"
+else
 cat > "$ARTO_DIR/run_app.sh" << 'RUNSCRIPT'
 #!/bin/bash
 
@@ -286,9 +289,9 @@ echo -e "${BLUE}[3/3] ARTO 대시보드 시작 (http://localhost:8001)...${NC}"
 cd "$SCRIPT_DIR"
 exec "$PYTHON" main.py
 RUNSCRIPT
-
 chmod +x "$ARTO_DIR/run_app.sh"
 $SUDO chown "$REAL_USER:$REAL_USER" "$ARTO_DIR/run_app.sh"
+fi  # end of if [[ ! -f run_app.sh ]]
 success "run_app.sh 구성 완료"
 
 # ── results 디렉토리 생성 ──────────────────────────────────

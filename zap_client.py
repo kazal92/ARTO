@@ -1,11 +1,15 @@
 import httpx
 import asyncio
+import json
 import urllib.parse
 import time
 
+from config import ZAP_BASE_URL
+
+
 class ZAPClient:
-    def __init__(self, base_url="http://localhost:8080"):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str = None):
+        self.base_url = (base_url or ZAP_BASE_URL).rstrip("/")
         self.api_url = f"{self.base_url}/JSON"
 
     async def wait_for_zap(self, timeout=60):
@@ -17,7 +21,7 @@ class ZAPClient:
                     resp = await client.get(f"{self.api_url}/core/view/version/")
                     if resp.status_code == 200:
                         return True
-            except:
+            except Exception:
                 pass
             await asyncio.sleep(2)
         return False
@@ -45,26 +49,31 @@ class ZAPClient:
 
     async def get_spider_status(self, scan_id):
         """Spider 진행률(%)을 반환합니다."""
-        if not scan_id: return 0
+        if not scan_id:
+            return 0
         params = {"scanId": scan_id}
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.api_url}/spider/view/status/", params=params)
-            if resp.status_code != 200: return 0
+            if resp.status_code != 200:
+                return 0
             try:
                 data = resp.json()
                 return int(data.get("status", 0))
-            except: return 0
+            except (json.JSONDecodeError, ValueError):
+                return 0
 
     async def get_spider_results(self, scan_id):
         """Spider가 발견한 URL 목록을 반환합니다."""
         params = {"scanId": scan_id}
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.api_url}/spider/view/results/", params=params)
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             try:
                 data = resp.json()
                 return data.get("results", [])
-            except: return []
+            except (json.JSONDecodeError, KeyError):
+                return []
 
     async def wait_for_spider(self, scan_id, interval=2):
         """Spider가 완료될 때까지 기다립니다."""
@@ -80,25 +89,28 @@ class ZAPClient:
         params = {"baseurl": base_url} if base_url else {}
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.api_url}/core/view/messages/", params=params)
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             try:
                 return resp.json().get("messages", [])
-            except: return []
+            except (json.JSONDecodeError, KeyError):
+                return []
 
     async def get_all_urls(self):
         """ZAP Sites 트리에서 모든 URL을 가져옵니다."""
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.api_url}/core/view/sites/")
-            if resp.status_code != 200: return []
+            if resp.status_code != 200:
+                return []
             try:
                 data = resp.json()
                 return data.get("sites", [])
-            except: return []
+            except (json.JSONDecodeError, KeyError):
+                return []
 
     async def set_upstream_proxy(self, proxy_host, proxy_port):
         """상위 프록시(Upstream Proxy)를 설정합니다."""
         async with httpx.AsyncClient() as client:
-            # ZAP API: core/action/setOptionProxyChainName 등 사용 시 매개변수명은 대문자로 시작해야 함 (String, Integer, Boolean)
             await client.get(f"{self.api_url}/core/action/setOptionProxyChainName/", params={"String": proxy_host})
             await client.get(f"{self.api_url}/core/action/setOptionProxyChainPort/", params={"Integer": proxy_port})
             await client.get(f"{self.api_url}/core/action/setOptionUseProxyChain/", params={"Boolean": "true"})
@@ -113,6 +125,7 @@ class ZAPClient:
     async def clear_zap_history(self):
         """ZAP 세션을 새로 생성하여 히스토리와 사이트 트리를 초기화합니다."""
         async with httpx.AsyncClient() as client:
-            # name이 비어있으면 기본 세션을 덮어씁니다.
             await client.get(f"{self.api_url}/core/action/newSession/", params={"name": "", "overwrite": "true"})
             return True
+
+

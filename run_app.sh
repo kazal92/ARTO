@@ -1,34 +1,51 @@
 #!/bin/bash
 
-# 색상 정의
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 
-echo -e "${BLUE}[1/3] 기존 ZAP 컨테이너 정리 중...${NC}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
+PYTHON="${VENV_PYTHON:-python3}"
+
+# ── Docker 데몬 확인 및 자동 시작 ─────────────────────────
+if ! docker info &>/dev/null 2>&1; then
+    echo -e "${BLUE}[*] Docker 데몬이 실행 중이 아닙니다. 시작 시도...${NC}"
+    if sudo service docker start 2>/dev/null; then
+        sleep 3
+    else
+        echo -e "${RED}[!] Docker를 시작할 수 없습니다.${NC}"
+        echo -e "    sudo service docker start  또는  Docker Desktop을 실행하세요."
+        exit 1
+    fi
+fi
+
+# ── ZAP 컨테이너 정리 및 시작 ─────────────────────────────
+echo -e "${BLUE}[1/3] 기존 ZAP 컨테이너 정리...${NC}"
 docker stop zap_main 2>/dev/null || true
-docker rm zap_main 2>/dev/null || true
+docker rm   zap_main 2>/dev/null || true
 
-echo -e "${BLUE}[2/3] OWASP ZAP 시작 중 (Docker)...${NC}"
-# --net=host 모드로 실행하여 호스트의 8080 포트를 직접 사용 (안정성 확보)
-docker run --net=host --name zap_main -d ghcr.io/zaproxy/zaproxy:stable zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
+echo -e "${BLUE}[2/3] OWASP ZAP 시작 (Docker)...${NC}"
+docker run --net=host --name zap_main -d \
+    ghcr.io/zaproxy/zaproxy:stable \
+    zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
 
-echo -e "${GREEN}[*] ZAP API가 준비될 때까지 잠시 대기합니다 (약 15초)...${NC}"
-sleep 15
+echo -e "${GREEN}[*] ZAP API 준비 대기 (약 15초)...${NC}"
+for i in $(seq 15 -1 1); do
+    printf "\r    남은 시간: %2ds " "$i"; sleep 1
+done
+echo ""
 
-# ZAP 상태 확인 (옵션)
-curl -s http://127.0.0.1:8080/JSON/core/view/version/ > /dev/null
-if [ $? -eq 0 ]; then
+if curl -s http://127.0.0.1:8080/JSON/core/view/version/ &>/dev/null; then
     echo -e "${GREEN}[V] ZAP API 연결 성공!${NC}"
 else
-    echo -e "${BLUE}[!] ZAP이 아직 준비되지 않았을 수 있습니다. 계속 진행합니다.${NC}"
+    echo -e "${BLUE}[!] ZAP 아직 준비 중일 수 있습니다. 계속 진행합니다.${NC}"
 fi
 
-if [ -f .env ]; then
-    echo -e "${GREEN}[*] .env 환경 변수 로드 중...${NC}"
-    # 주석 제외하고 로드
-    export $(grep -v '^#' .env | xargs)
+# .env 로드 (공백/특수문자가 있는 값도 안전하게 처리)
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    echo -e "${GREEN}[*] .env 로드 중...${NC}"
+    set -a; source "$SCRIPT_DIR/.env"; set +a
 fi
 
-echo -e "${BLUE}[3/3] 메인 애플리케이션 시작 중 (http://localhost:8001)...${NC}"
-python3 main.py
+echo -e "${BLUE}[3/3] ARTO 대시보드 시작 (http://localhost:8001)...${NC}"
+cd "$SCRIPT_DIR"
+exec "$PYTHON" main.py

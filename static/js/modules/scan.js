@@ -84,7 +84,9 @@ async function startScan() {
                             ? document.getElementById('vertexApiKey').value
                             : document.getElementById('lmstudioApiKey').value),
                     base_url: document.getElementById('aiUrl').value,
-                    model: document.getElementById('aiModel').value
+                    model: document.getElementById('aiModel').value,
+                    max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
+                    custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
                 }
             })
         });

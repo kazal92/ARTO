@@ -76,6 +76,7 @@ function saveSettings() {
     localStorage.setItem('aiUrl', document.getElementById('aiUrl').value);
     localStorage.setItem('aiModel', document.getElementById('aiModel').value);
     localStorage.setItem('customHeaders', document.getElementById('customHeaders').value);
+    localStorage.setItem('aiPromptCustom', document.getElementById('aiPromptCustom')?.value || '');
 }
 
 function loadSettings() {
@@ -83,8 +84,11 @@ function loadSettings() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     if (typeof updateThemeUI === 'function') updateThemeUI(savedTheme);
 
-    const aiType = localStorage.getItem('aiType') || 'lmstudio';
-    const aiUrl = localStorage.getItem('aiUrl') || 'http://192.168.1.100:1234/v1';
+    const aiType = localStorage.getItem('aiType') || 'gemini';
+    const defaultUrl = aiType === 'gemini'
+        ? 'https://generativelanguage.googleapis.com/v1beta/openai/'
+        : 'http://192.168.1.100:1234/v1';
+    const aiUrl = localStorage.getItem('aiUrl') || defaultUrl;
 
     // AI 타입에 따라 기본 모델 결정
     let aiModel = localStorage.getItem('aiModel');
@@ -106,6 +110,7 @@ function loadSettings() {
     set('aiUrl', aiUrl);
     set('aiModel', aiModel);
     set('customHeaders', localStorage.getItem('customHeaders') || '');
+    set('aiPromptCustom', localStorage.getItem('aiPromptCustom') || '');
 
     if (document.getElementById('proxyEnabled')) {
         document.getElementById('proxyEnabled').checked = localStorage.getItem('proxyEnabled') === 'true';

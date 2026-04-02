@@ -523,8 +523,8 @@
                                 <select id="aiType" class="form-select"
                                     style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
                                     onchange="toggleAiSettings(true)">
-                                    <option value="lmstudio">LM Studio (Local)</option>
                                     <option value="gemini">Google Gemini AI</option>
+                                    <option value="lmstudio">LM Studio (Local)</option>
                                     <option value="vertex">Google Vertex AI (미완성)</option>
                                 </select>
                             </div>
@@ -579,6 +579,18 @@
                             style="resize: vertical; min-height: 60px;"
                             placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."></textarea>
 
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
+                            <button class="btn btn-xs btn-link text-secondary p-0"
+                                style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                onclick="document.getElementById('aiPromptCustom').value = ''; localStorage.removeItem('aiPromptCustom');">
+                                <i class="fa-solid fa-rotate-left me-1"></i>기본값으로 초기화
+                            </button>
+                        </div>
+                        <textarea id="aiPromptCustom" class="glass-input w-100 mb-2" rows="4"
+                            style="resize: vertical; min-height: 80px; font-size: 0.8rem; font-family: monospace;"
+                            placeholder="비워두면 기본 프롬프트 사용. {batch_str} 위치에 분석 데이터가 삽입됩니다."></textarea>
+
                         <div class="d-flex gap-2 mb-2">
                             <div style="flex:0 0 22%;">
                                 <label class="form-label text-muted small fw-bold">ffuf 워드리스트</label>
@@ -591,6 +603,11 @@
                                 <input type="text" id="ffufOptions" class="glass-input w-100"
                                     value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
                                     placeholder="-t 50 -mc 200,301,302,401,403 -ac -ic">
+                            </div>
+                            <div style="flex:0 0 140px;">
+                                <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
+                                <input type="number" id="maxEndpointsPerBatch" class="glass-input w-100" min="0" value="0"
+                                    placeholder="0 = 제한없음" style="text-align:center;">
                             </div>
                         </div>
 
