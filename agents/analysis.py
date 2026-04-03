@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 from openai import AsyncOpenAI
 from config import LM_STUDIO_API_URL, LM_STUDIO_MODEL
-from tools import minimize_request_raw, get_heuristic_score, extract_relevant_snippet
+from tools import minimize_request_raw, extract_relevant_snippet
 from core.session import save_tool_result
 from core.logging import stream_log, stream_custom, stream_chunk
 from core.cancellation import is_cancelled
@@ -204,7 +204,8 @@ async def run_analysis_agent(
     session_dir: str,
     recon_data: Dict,
     headers: Dict = None,
-    ai_config: Dict = None
+    ai_config: Dict = None,
+    user_specified: bool = False
 ):
     if is_cancelled(session_dir):
         return
@@ -220,17 +221,6 @@ async def run_analysis_agent(
 
     yield stream_log(session_dir, "정찰 데이터 기반 분석 대상 선별 및 전처리 시작", "AI", 80)
 
-    # 수동 AI 타겟 로드
-    manual_targets = None
-    manual_targets_path = os.path.join(session_dir, "manual_targets.json")
-    if os.path.exists(manual_targets_path):
-        try:
-            with open(manual_targets_path, "r", encoding="utf-8") as _f:
-                manual_targets = set(json.load(_f))
-            yield stream_log(session_dir, f"[AI] 수동 지정 타겟 {len(manual_targets)}개 로드 - 해당 항목만 분석합니다.", "AI")
-        except Exception:
-            manual_targets = None
-
     all_requests = []
 
     endpoints = recon_data.get('endpoints', [])
@@ -242,32 +232,11 @@ async def run_analysis_agent(
         if not req_raw:
             continue
 
-        if manual_targets is not None:
-            ep_key = f"{ep.get('method', 'GET')}:{ep['url']}"
-            if ep_key not in manual_targets:
-                continue
-
-        from agents.recon import is_static_file
-        if is_static_file(ep['url']):
-            continue
-
         minimized_req = minimize_request_raw(req_raw) if ENABLE_REQUEST_COMPRESSION else req_raw
 
         req_parts = req_raw.split('\n\n', 1)
         r_body = req_parts[1] if len(req_parts) > 1 else ""
         context = extract_relevant_snippet(ep['url'], r_body, res_raw)
-
-        res_status = 200
-        if res_raw:
-            try:
-                status_line = res_raw.lstrip().split('\n')[0]
-                if "HTTP" in status_line and " " in status_line:
-                    res_status = int(status_line.split(" ")[1])
-            except (IndexError, ValueError):
-                res_status = 200
-
-        if res_status == 404:
-            continue
 
         all_requests.append({
             "url": ep['url'],
@@ -275,41 +244,27 @@ async def run_analysis_agent(
             "source": ep.get('source', 'recon'),
             "raw_request": minimized_req,
             "response_context": context['response_context'],
-            "score": get_heuristic_score(ep['method'], ep['url'], body=r_body, res_status=res_status)
         })
 
     if not all_requests:
         yield stream_log(session_dir, "분석 가능한 데이터가 없어 분석을 중단합니다.", "AI", 100)
         return
 
-    # 중복 제거 및 필터링
-    unique_requests = []
-    seen_exact = set()
-    for req in all_requests:
-        exact_key = f"{req['method']}:{req['url']}"
-        if exact_key not in seen_exact:
-            unique_requests.append(req)
-            seen_exact.add(exact_key)
-
-    unique_requests.sort(key=lambda x: (-x.get('score', 0), x.get('url', '')))
-
-    filtered_requests = []
-    seen_structs = {}
-    for req in unique_requests:
-        parsed = urllib.parse.urlparse(req['url'])
-        path = parsed.path if parsed.path else "/"
-        queries = urllib.parse.parse_qs(parsed.query)
-        q_keys = ",".join(sorted(queries.keys()))
-        struct_key = f"{req['method']}:{path}:{q_keys if q_keys else 'no_params'}"
-        seen_structs[struct_key] = seen_structs.get(struct_key, 0) + 1
-        if seen_structs[struct_key] <= 2:
-            filtered_requests.append(req)
-
-    all_requests = filtered_requests
+    if not user_specified:
+        filtered_requests = []
+        seen_structs = {}
+        for req in all_requests:
+            parsed = urllib.parse.urlparse(req['url'])
+            path = parsed.path if parsed.path else "/"
+            queries = urllib.parse.parse_qs(parsed.query)
+            q_keys = ",".join(sorted(queries.keys()))
+            struct_key = f"{req['method']}:{path}:{q_keys if q_keys else 'no_params'}"
+            seen_structs[struct_key] = seen_structs.get(struct_key, 0) + 1
+            if seen_structs[struct_key] <= 2:
+                filtered_requests.append(req)
+        all_requests = filtered_requests
 
     ai_target_list = [f"{req['method']}:{req['url']}" for req in all_requests]
-    save_tool_result(session_dir, "ai_targets", ai_target_list)
-    yield stream_custom(session_dir, {"type": "ai_targets", "data": ai_target_list})
 
     for req in all_requests:
         req.pop('method', None)

@@ -577,7 +577,8 @@
                         <label class="form-label text-muted small fw-bold">사용자 정의 요청 헤더 (Cookies, Setup)</label>
                         <textarea id="customHeaders" class="glass-input w-100 mb-2" rows="2"
                             style="resize: vertical; min-height: 60px;"
-                            placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."></textarea>
+                            placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."
+                            oninput="localStorage.setItem('customHeaders', this.value)"></textarea>
 
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
@@ -602,7 +603,7 @@
                                 <label class="form-label text-muted small fw-bold">ffuf 고급 옵션</label>
                                 <input type="text" id="ffufOptions" class="glass-input w-100"
                                     value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
-                                    placeholder="-t 50 -mc 200,301,302,401,403 -ac -ic">
+                                    placeholder="-u http://target.com/FUZZ -t 50 -mc 200,301,302,401,403 -ac -ic">
                             </div>
                             <div style="flex:0 0 140px;">
                                 <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
@@ -653,12 +654,7 @@
                                 <i class="fa-solid fa-layer-group" style="color:#a78bfa;"></i> ffuf 재귀 탐색
                             </label>
 
-                            <input class="module-toggle" type="checkbox" id="enableAiAnalysis" checked>
-                            <label class="module-btn" for="enableAiAnalysis">
-                                <i class="fa-solid fa-brain text-success"></i> AI 분석
-                            </label>
-
-                            <input class="module-toggle" type="checkbox" id="enableNuclei" disabled>
+<input class="module-toggle" type="checkbox" id="enableNuclei" disabled>
                             <label class="module-btn" for="enableNuclei">
                                 <i class="fa-solid fa-atom text-danger"></i> Nuclei
                                 <span class="badge bg-secondary ms-1" style="font-size:0.58rem; font-weight:500;">준비중</span>
@@ -762,9 +758,11 @@
                         <button class="btn btn-sm btn-outline-info" onclick="loadZapHistory()">
                             <i class="fa-solid fa-bolt me-1"></i>히스토리 로드
                         </button>
-                        <button class="btn btn-sm btn-outline-primary" id="btnSetAiTarget"
-                            onclick="setSelectedAsAiTarget()" disabled>
-                            <i class="fa-solid fa-crosshairs me-1"></i>AI 타겟 지정 (0)
+                        <button id="btnAutoTarget" class="btn btn-sm btn-outline-warning" onclick="autoTarget()">
+                            <i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정
+                        </button>
+                        <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
+                            <i class="fa-solid fa-brain me-1"></i>AI 분석 시작
                         </button>
                     </div>
                 </div>
@@ -817,6 +815,8 @@
                                     </th>
                                     <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i
                                             class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="80" class="text-center">Action</th>
                                 </tr>
                                 <tr class="filter-row">
@@ -845,6 +845,7 @@
                                             onkeyup="applyFilters()"
                                             style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
                                     </th>
+                                    <th></th>
                                     <th></th>
                                     <th></th>
                                 </tr>

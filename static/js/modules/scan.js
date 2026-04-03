@@ -5,6 +5,21 @@
 let zapHistoryInterval = null;
 let zapHistoryData = [];
 
+function syncFfufUrl(url) {
+    const opts = document.getElementById('ffufOptions');
+    if (!opts) return;
+    const defaultOpts = '-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic';
+    let current = opts.value.trim().replace(/-u\s+\S+\s*/g, '').trim() || defaultOpts;
+    opts.value = url ? `-u ${url}/FUZZ ${current}` : current;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const targetInput = document.getElementById('targetUrl');
+    if (targetInput) {
+        targetInput.addEventListener('input', () => syncFfufUrl(targetInput.value.trim()));
+    }
+});
+
 function updateScanConfigButton(isRunning) {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
@@ -34,8 +49,6 @@ async function startScan() {
     document.getElementById('endpointsTableBody').innerHTML = '<tr><td colspan="8" class="empty-state">엔드포인트 자산 수집 중...</td></tr>';
     aiCardsData = [];
     aiTargetUrls.clear();
-    selectedEndpointsSet.clear();
-    toggleMainAnalyzeBtn();
     renderCards([]);
     renderEndpoints([]);
     document.getElementById('progressBar').style.width = "0%";
@@ -75,7 +88,6 @@ async function startScan() {
                 enable_zap_spider: document.getElementById('enableZapSpider') ? document.getElementById('enableZapSpider').checked : true,
                 enable_ffuf: document.getElementById('enableFfuf') ? document.getElementById('enableFfuf').checked : true,
                 enable_deep_recon: document.getElementById('enableDeepRecon') ? document.getElementById('enableDeepRecon').checked : true,
-                enable_ai_analysis: document.getElementById('enableAiAnalysis') ? document.getElementById('enableAiAnalysis').checked : true,
                 ai_config: {
                     type: document.getElementById('aiType').value,
                     api_key: document.getElementById('aiType').value === 'gemini'
@@ -154,11 +166,6 @@ async function startScan() {
                         if (data.type === "ai_card") {
                             aiCardsData.push(data.data);
                             renderCards(aiCardsData);
-                        }
-                        if (data.type === "ai_targets") {
-                            aiTargetUrls = new Set(data.data || []);
-                            renderEndpoints(allEndpoints, true);
-                            appendLog(`AI 엔진이 심층 분석을 위해 ${aiTargetUrls.size}개의 타겟을 선정했습니다.`, "System");
                         }
                         if (data.type === "scan_complete") {
                             const pBar = document.getElementById('progressBar');
@@ -329,3 +336,77 @@ async function loadZapHistory() {
     }
 }
 
+
+async function startAiScan(sessionId) {
+    const btn = document.getElementById('btnRunAi');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i>AI 분석 중...'; }
+
+    const aiConfig = {
+        type: document.getElementById('aiType')?.value || '',
+        api_key: document.getElementById('aiType')?.value === 'gemini'
+            ? document.getElementById('geminiApiKey')?.value
+            : (document.getElementById('aiType')?.value === 'vertex'
+                ? document.getElementById('vertexApiKey')?.value
+                : document.getElementById('lmstudioApiKey')?.value),
+        base_url: document.getElementById('aiUrl')?.value || '',
+        model: document.getElementById('aiModel')?.value || '',
+        max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
+        custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/api/session/${sessionId}/run_ai`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ai_config: aiConfig })
+        });
+
+        if (!res.ok) {
+            appendLog('AI 분석 API 연결에 실패했습니다.', 'System');
+            return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop();
+            for (const event of events) {
+                const trimmed = event.trim();
+                if (!trimmed.startsWith('data: ')) continue;
+                try {
+                    const data = JSON.parse(trimmed.substring(6));
+                    if (data.type === 'log' || data.type === 'progress') {
+                        appendLog(data.message || data.msg, data.agent || data.source);
+                    }
+                    if (data.progress !== undefined) {
+                        const pBar = document.getElementById('progressBar');
+                        const pText = document.getElementById('progressText');
+                        if (pBar) pBar.style.width = data.progress + '%';
+                        if (pText) pText.textContent = Math.floor(data.progress) + '%';
+                        const statText = document.getElementById('scanStatusText');
+                        if (statText) statText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-info me-2"></i>AI 심층 분석 수행 중...`;
+                    }
+                    if (data.type === 'ai_card') {
+                        aiCardsData.push(data.data);
+                        renderCards(aiCardsData);
+                    }
+                    if (data.type === 'scan_complete') {
+                        const statText = document.getElementById('scanStatusText');
+                        if (statText) statText.innerHTML = `<i class="fa-solid fa-check-circle text-success me-2"></i>AI 분석 완료`;
+                        updateScanConfigButton(false);
+                    }
+                } catch {}
+            }
+        }
+    } catch (e) {
+        console.error('AI scan error', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-brain me-1"></i>AI 분석 시작'; }
+    }
+}

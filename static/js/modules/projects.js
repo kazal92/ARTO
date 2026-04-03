@@ -529,6 +529,7 @@ async function selectProject(sId, targetSec = null) {
         targetInput.value = pTarget;
         targetInput.removeAttribute('readonly');
         targetInput.style.background = '';
+        if (typeof syncFfufUrl === 'function') syncFfufUrl(pTarget);
     }
 
     const breadcrumbText = document.getElementById('breadcrumbText');

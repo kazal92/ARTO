@@ -9,7 +9,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from agents.recon import run_recon_agent
-from agents.analysis import run_analysis_agent
 from core.session import get_session_dir, find_session_dir, save_tool_result
 from core.logging import stream_log, stream_custom
 from core.cancellation import is_cancelled, mark_cancelled, mark_active, mark_inactive, is_active
@@ -30,7 +29,6 @@ class ScanRequest(BaseModel):
     enable_zap_spider: bool = True
     enable_ffuf: bool = True
     enable_deep_recon: bool = True
-    enable_ai_analysis: bool = True
 
     @field_validator("target_url")
     @classmethod
@@ -131,52 +129,18 @@ async def start_scan(req: ScanRequest, request: Request):
 
             async def run_scan_task(ai_config: dict):
                 try:
-                    recon_data = None
+                    async for update in run_recon_agent(
+                        req.target_url, session_dir, req.headers,
+                        enable_deep_recon=req.enable_deep_recon,
+                        enable_zap=req.enable_zap_spider,
+                        enable_ffuf=req.enable_ffuf,
+                        ffuf_options=req.ffuf_options,
+                        ffuf_wordlist=req.ffuf_wordlist
+                    ):
+                        await asyncio.sleep(0)
 
-                    ai_only_mode = (
-                        not req.enable_zap_spider and
-                        not req.enable_ffuf and
-                        req.enable_ai_analysis
-                    )
-
-                    if not ai_only_mode:
-                        manual_targets_path = os.path.join(session_dir, "manual_targets.json")
-                        if os.path.exists(manual_targets_path):
-                            os.remove(manual_targets_path)
-
-                    if ai_only_mode:
-                        recon_map_path = os.path.join(session_dir, "recon_map.json")
-                        if os.path.exists(recon_map_path):
-                            with open(recon_map_path, "r", encoding="utf-8") as f:
-                                recon_data = json.load(f)
-                            stream_log(session_dir, f"[AI Only] 기존 정찰 데이터 로드 완료 ({len(recon_data.get('endpoints', []))}개 엔드포인트)", "System", 10)
-                        else:
-                            stream_log(session_dir, "[AI Only] 기존 정찰 데이터가 없습니다. 먼저 정찰 스캔을 실행하세요.", "System", 100)
-                            stream_custom(session_dir, {"type": "scan_complete", "data": []})
-                            return
-                    else:
-                        async for update in run_recon_agent(
-                            req.target_url, session_dir, req.headers,
-                            enable_deep_recon=req.enable_deep_recon,
-                            enable_zap=req.enable_zap_spider,
-                            enable_ffuf=req.enable_ffuf,
-                            ffuf_options=req.ffuf_options,
-                            ffuf_wordlist=req.ffuf_wordlist
-                        ):
-                            if "recon_result" in update:
-                                try:
-                                    data = json.loads(update)
-                                    recon_data = data.get("data")
-                                except (json.JSONDecodeError, KeyError):
-                                    pass
-                            await asyncio.sleep(0)
-
-                    if recon_data and not is_cancelled(session_dir) and req.enable_ai_analysis:
-                        async for update in run_analysis_agent(req.target_url, session_dir, recon_data, req.headers, ai_config):
-                            await asyncio.sleep(0)
-                    elif not req.enable_ai_analysis:
-                        stream_log(session_dir, "AI 분석이 비활성화되어 스캔을 완료합니다.", "System", 100)
-                        stream_custom(session_dir, {"type": "scan_complete", "data": []})
+                    stream_log(session_dir, "정찰이 완료되었습니다. 엔드포인트 탭에서 AI 분석 대상을 지정하세요.", "System", 100)
+                    stream_custom(session_dir, {"type": "scan_complete", "data": []})
                 except Exception as e:
                     stream_log(session_dir, f"Background Scan Error: {str(e)}", "System")
                 finally:
@@ -209,6 +173,8 @@ async def start_scan(req: ScanRequest, request: Request):
             timeout_count += 1
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 
 
 @router.post("/api/scan/stop")

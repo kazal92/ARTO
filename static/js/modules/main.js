@@ -72,12 +72,6 @@ async function loadSession(sessionId) {
                 originalIndex: idx + 1
             }));
 
-            inputs.forEach(req => {
-                const m = req.method || req.requestMethod || 'GET';
-                const u = req.url || req.requestHeader?.split(' ')[1];
-                if (u) aiTargetUrls.add(m + ":" + u);
-            });
-
             renderEndpoints(allEndpoints);
         }
     } catch (e) { console.warn("AI input load failed", e); }
@@ -99,23 +93,7 @@ async function loadSession(sessionId) {
         }
     } catch (e) { console.warn("Recon map load failed", e); }
 
-    // 3. AI 분석 대상 Recovery
-    try {
-        const resTargets = await fetch(`${API_BASE}/api/history/${sessionId}/json/ai_targets`);
-        const targetsJson = await resTargets.json();
-        if (targetsJson.status === "success") {
-            const targets = JSON.parse(targetsJson.content);
-            aiTargetUrls = new Set(targets);
-            renderEndpoints(allEndpoints, true);
-        } else {
-            aiTargetUrls = new Set();
-        }
-    } catch (e) {
-        console.warn("AI targets load failed", e);
-        aiTargetUrls = new Set();
-    }
-
-    // 4. AI Findings
+    // 3. AI Findings
     try {
         const resCards = await fetch(`${API_BASE}/api/history/${sessionId}/json/ai_findings`);
         const cardsJson = await resCards.json();

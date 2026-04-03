@@ -104,10 +104,23 @@ async def clear_zap(request: Request):
         if session_id:
             session_dir = find_session_dir(session_id)
             if session_dir:
+                # recon_map 초기화
                 recon_map_path = os.path.join(session_dir, "recon_map.json")
                 if os.path.exists(recon_map_path):
                     with open(recon_map_path, "w", encoding="utf-8") as f:
                         json.dump({"target": "", "endpoints": []}, f)
+
+                # 정찰 관련 파일 삭제
+                for filename in ["ai_input_full_requests.json", "scan_log.jsonl"]:
+                    path = os.path.join(session_dir, filename)
+                    if os.path.exists(path):
+                        os.remove(path)
+
+                # ai_input_batch_*.json 삭제
+                for fname in os.listdir(session_dir):
+                    if fname.startswith("ai_input_batch_") and fname.endswith(".json"):
+                        os.remove(os.path.join(session_dir, fname))
+
 
         return {"status": "success", "message": "ZAP history / Site tree 초기화 완료."}
     except Exception as e:

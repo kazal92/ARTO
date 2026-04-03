@@ -91,7 +91,7 @@ async def run_command_stream(command: str, log_file: Optional[str] = None):
         yield f"Error: {str(e)}\n"
 
 
-async def run_zap_spider(target_url: str, session_dir: str):
+async def run_zap_spider(target_url: str, session_dir: str, headers: Dict = None):
     """OWASP ZAP Spider를 사용하여 엔드포인트를 실시간으로 수집합니다."""
     zap = ZAPClient()
 
@@ -103,6 +103,10 @@ async def run_zap_spider(target_url: str, session_dir: str):
             yield {"type": "progress", "msg": "[ZAP] API 서버 응답 없음 (연결 실패)", "progress": 10}
             yield {"type": "result", "data": []}
             return
+
+        if headers:
+            await zap.add_replacer_rules(headers)
+            yield {"type": "progress", "msg": f"[ZAP] 커스텀 헤더 {len(headers)}개 등록 완료", "progress": 11}
 
         yield {"type": "progress", "msg": "[ZAP] Spider 프로세스 초기화 중...", "progress": 12}
         scan_id = await zap.start_spider(target_url)
@@ -133,10 +137,17 @@ async def run_zap_spider(target_url: str, session_dir: str):
             await asyncio.sleep(2)
 
         detailed_urls = [{"url": u, "method": "GET", "source": "zap_spider"} for u in seen_urls]
+        if headers:
+            await zap.remove_replacer_rules(headers)
         yield {"type": "progress", "msg": f"[ZAP] Spider 완료! (총 {len(detailed_urls)}개의 경로 식별)", "progress": 50}
         yield {"type": "result", "data": detailed_urls}
 
     except Exception as e:
+        if headers:
+            try:
+                await zap.remove_replacer_rules(headers)
+            except Exception:
+                pass
         yield {"type": "progress", "msg": f"[ZAP] 런타임 에러: {str(e)}", "progress": 50}
         yield {"type": "result", "data": []}
 
@@ -157,14 +168,15 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
             wordlist = "/usr/share/wordlists/dirbuster/directory-list-2.3-small.txt"
 
     tool_dir = os.path.join(session_dir, "ffuf")
-    response_dir = os.path.join(tool_dir, "responses")
-    if os.path.exists(response_dir):
-        shutil.rmtree(response_dir)
-    os.makedirs(response_dir, exist_ok=True)
+    os.makedirs(tool_dir, exist_ok=True)
     raw_log_path = os.path.join(tool_dir, "raw_output.txt")
 
     extra_opts = ffuf_options.strip() if ffuf_options else "-t 50 -mc 200,204,301,302,307,401,403,500 -ac"
-    cmd_base = f"ffuf -w {wordlist} -u {target} {extra_opts} -s -json -od {response_dir}"
+
+    if '-u ' in extra_opts:
+        cmd_base = f"ffuf -w {wordlist} {extra_opts} -x http://localhost:8080 -s -json"
+    else:
+        cmd_base = f"ffuf -w {wordlist} -u {target} {extra_opts} -x http://localhost:8080 -s -json"
     if headers:
         for k, v in headers.items():
             cmd_base += f' -H "{k}: {v}"'

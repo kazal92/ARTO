@@ -128,4 +128,28 @@ class ZAPClient:
             await client.get(f"{self.api_url}/core/action/newSession/", params={"name": "", "overwrite": "true"})
             return True
 
+    async def add_replacer_rules(self, headers: dict):
+        """커스텀 헤더를 ZAP Replacer 규칙으로 등록합니다."""
+        async with httpx.AsyncClient() as client:
+            for name, value in headers.items():
+                params = {
+                    "description": f"arto_header_{name}",
+                    "enabled": "true",
+                    "matchType": "REQ_HEADER",
+                    "matchRegex": "false",
+                    "matchString": name,
+                    "replacement": value,
+                    "initiators": ""
+                }
+                await client.get(f"{self.api_url}/replacer/action/addRule/", params=params)
+
+    async def remove_replacer_rules(self, headers: dict):
+        """등록한 커스텀 헤더 Replacer 규칙을 제거합니다."""
+        async with httpx.AsyncClient() as client:
+            for name in headers.keys():
+                await client.get(
+                    f"{self.api_url}/replacer/action/removeRule/",
+                    params={"description": f"arto_header_{name}"}
+                )
+
 

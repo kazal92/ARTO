@@ -5,7 +5,6 @@
 let allEndpoints = [];
 let aiTargetUrls = new Set();
 let endpointSortState = { column: 'ai', direction: 'asc' };
-let selectedEndpointsSet = new Set();
 let currentPage = 1;
 const pageSize = 100;
 let endpointsToRender = [];
@@ -70,6 +69,8 @@ function applyFilters() {
             valA = parseInt(a.status) || 0; valB = parseInt(b.status) || 0;
         } else if (col === 'time') {
             valA = a.time || ''; valB = b.time || '';
+        } else if (col === 'size') {
+            valA = a.responseSize || 0; valB = b.responseSize || 0;
         } else { valA = 0; valB = 0; }
 
         if (valA < valB) return endpointSortState.direction === 'asc' ? -1 : 1;
@@ -124,7 +125,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
     }
 
     if (totalCount === 0) {
-        el.innerHTML = '<tr><td colspan="8" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
+        el.innerHTML = '<tr><td colspan="9" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
         const pag = document.getElementById('endpointPagination');
         if (pag) pag.innerHTML = '';
         return;
@@ -166,15 +167,16 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
             statusBadge = `<span class="status-badge ${sType}">${status}</span>`;
         }
 
-        const isSelected = selectedEndpointsSet.has(aiKey);
+        const resSize = ep.responseSize != null ? ep.responseSize : '-';
         tr.innerHTML = `
-            <td class="text-center"><input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isSelected ? 'checked' : ''} onchange="handleEndpointCheck(this)"></td>
+            <td class="text-center"><input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isAiTarget ? 'checked' : ''} onchange="handleEndpointCheck(this)"></td>
             <td class="text-center text-muted" style="font-size:0.72rem;">${ep.originalIndex || (globalIdx + 1)}</td>
             <td class="text-center">${aiBadge}</td>
             <td class="text-center"><span class="method-tag ${methodClass}">${methodUpper}</span></td>
             <td class="font-mono" style="word-break:break-all;color:var(--text-main);font-size:0.82rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ep.url}">${ep.url}</td>
             <td class="text-center">${statusBadge}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${ep.time || '-'}</td>
+            <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${resSize}</td>
             <td class="text-center">
                 <button class="ep-detail-btn" onclick="openEndpointModalByIdx(${globalIdx})" title="상세보기">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -208,71 +210,77 @@ function renderPaginationControls(totalPages) {
 
 function changePage(page) {
     currentPage = page;
-    renderEndpoints(allEndpoints, true);
+    renderEndpoints(endpointsToRender, true);
 }
 
-// ── 체크박스 선택 ──────────────────────────────────────────
+// ── 체크박스 = AI 타겟 토글 ───────────────────────────────
 
 function handleEndpointCheck(checkbox) {
     const method = checkbox.getAttribute('data-method') || 'GET';
     const url = checkbox.getAttribute('data-url');
     const key = `${method}:${url}`;
-    if (checkbox.checked) selectedEndpointsSet.add(key);
-    else selectedEndpointsSet.delete(key);
-    toggleMainAnalyzeBtn();
+    if (checkbox.checked) aiTargetUrls.add(key);
+    else aiTargetUrls.delete(key);
+    applyFilters();
+    saveAiTargets();
 }
 
 function toggleAllEndpoints(masterCheckbox) {
     document.querySelectorAll('.endpoint-check').forEach(c => {
         c.checked = masterCheckbox.checked;
         const key = `${c.getAttribute('data-method') || 'GET'}:${c.getAttribute('data-url')}`;
-        if (masterCheckbox.checked) selectedEndpointsSet.add(key);
-        else selectedEndpointsSet.delete(key);
+        if (masterCheckbox.checked) aiTargetUrls.add(key);
+        else aiTargetUrls.delete(key);
     });
-    toggleMainAnalyzeBtn();
+    applyFilters();
+    saveAiTargets();
 }
 
-function toggleMainAnalyzeBtn() {
-    const total = selectedEndpointsSet.size;
-    const allAreTargets = total > 0 && [...selectedEndpointsSet].every(key => aiTargetUrls.has(key));
+// ── AI 타겟 저장 ─────────────────────────────────────────
 
-    const targetBtn = document.getElementById('btnSetAiTarget');
-    if (targetBtn) {
-        if (allAreTargets) {
-            targetBtn.innerHTML = `<i class="fa-solid fa-xmark me-1"></i>타겟 제거 (${total})`;
-            targetBtn.className = 'btn btn-sm btn-outline-danger';
-        } else {
-            targetBtn.innerHTML = `<i class="fa-solid fa-crosshairs me-1"></i>AI 타겟 지정 (${total})`;
-            targetBtn.className = 'btn btn-sm btn-outline-primary';
-        }
-        targetBtn.disabled = (total === 0);
-    }
-}
-
-async function setSelectedAsAiTarget() {
-    if (selectedEndpointsSet.size === 0) return;
-
-    const allAreTargets = [...selectedEndpointsSet].every(key => aiTargetUrls.has(key));
-
-    if (allAreTargets) {
-        selectedEndpointsSet.forEach(key => aiTargetUrls.delete(key));
-    } else {
-        selectedEndpointsSet.forEach(key => aiTargetUrls.add(key));
-    }
-
-    selectedEndpointsSet.clear();
-    renderEndpoints(allEndpoints, true);
-    toggleMainAnalyzeBtn();
-
-    const sessionId = (typeof currentProject !== 'undefined' && currentProject?.id)
-        || localStorage.getItem('currentSessionId');
+function saveAiTargets() {
+    const sessionId = localStorage.getItem('currentSessionId');
     if (!sessionId) return;
-
-    await fetch(`${API_BASE}/api/session/${sessionId}/manual_targets`, {
+    fetch(`${API_BASE}/api/session/${sessionId}/ai_targets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ targets: [...aiTargetUrls] })
-    });
+    }).catch(() => {});
+}
+
+// ── 자동 타겟지정 ────────────────────────────────────────
+
+async function autoTarget() {
+    const sessionId = localStorage.getItem('currentSessionId');
+    if (!sessionId) return;
+    const btn = document.getElementById('btnAutoTarget');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin me-1"></i>분석 중...'; }
+
+    try {
+        const res = await fetch(`${API_BASE}/api/session/${sessionId}/auto_target`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            aiTargetUrls.clear();
+            (data.targets || []).forEach(t => aiTargetUrls.add(t));
+            applyFilters();
+        }
+    } catch (e) {
+        console.error('auto_target error', e);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정'; }
+    }
+}
+
+// ── AI 분석 실행 ─────────────────────────────────────────
+
+function runAiAnalysis() {
+    const sessionId = localStorage.getItem('currentSessionId');
+    if (!sessionId) return;
+    if (aiTargetUrls.size === 0) {
+        alert('AI 분석 대상이 없습니다. 먼저 타겟을 지정하세요.');
+        return;
+    }
+    if (typeof startAiScan === 'function') startAiScan(sessionId);
 }
 
 // ── 엔드포인트 상세 모달 ───────────────────────────────────
@@ -285,8 +293,9 @@ function openEndpointModalByIdx(idx) {
     const methodClasses = { GET:'method-get', POST:'method-post', PUT:'method-put', DELETE:'method-delete', PATCH:'method-patch' };
     const methodClass = methodClasses[methodUpper] || 'method-other';
 
-    const reqRaw = ep.request_raw || '(No Request Data)';
-    const resRaw = ep.response_raw || '(No Response Data)';
+    const escapeHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const reqRaw = escapeHtml(ep.request_raw || '(No Request Data)');
+    const resRaw = escapeHtml(ep.response_raw || '(No Response Data)');
     const reqSize = ep.requestSize ? `${ep.requestSize} bytes` : `${reqRaw.length} bytes`;
     const resSize = ep.responseSize ? `${ep.responseSize} bytes` : `${resRaw.length} bytes`;
 
