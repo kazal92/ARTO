@@ -167,7 +167,12 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
             statusBadge = `<span class="status-badge ${sType}">${status}</span>`;
         }
 
-        const resSize = ep.responseSize != null ? ep.responseSize : '-';
+        const resSize = (() => {
+            const n = ep.responseSize;
+            if (n == null || n === '') return '-';
+            const bytes = parseInt(n);
+            return isNaN(bytes) ? '-' : bytes;
+        })();
         tr.innerHTML = `
             <td class="text-center"><input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isAiTarget ? 'checked' : ''} onchange="handleEndpointCheck(this)"></td>
             <td class="text-center text-muted" style="font-size:0.72rem;">${ep.originalIndex || (globalIdx + 1)}</td>

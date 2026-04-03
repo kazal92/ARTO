@@ -761,7 +761,7 @@
             font-size: 0.7rem;
             text-transform: uppercase;
             color: var(--text-muted);
-            padding: 0.6rem 0.8rem;
+            padding: 0.35rem 0.6rem;
             font-weight: 700;
             background: rgba(0, 0, 0, 0.1);
             border-bottom: 1px solid var(--border-color);
@@ -793,7 +793,7 @@
         }
 
         .ep-table td {
-            padding: 0.6rem 0.8rem;
+            padding: 0.3rem 0.6rem;
             font-size: 0.83rem;
             vertical-align: middle;
         }
