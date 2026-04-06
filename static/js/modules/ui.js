@@ -106,19 +106,38 @@ function appendLog(msg, source = "System") {
 
     const safeMsg = (msg || "").toString();
     const upperMsg = safeMsg.toUpperCase();
+    const isFfufDiscovery = safeMsg.startsWith('[FFUF]');
+    const isZapDiscovery = safeMsg.startsWith('[ZAP]') && /^https?:\/\//.test(safeMsg.slice(5).trim());
     const isErrorMsg = (upperMsg.includes("FAIL") || safeMsg.includes("실패") || safeMsg.includes("치명적"))
         || (upperMsg.includes("ERROR") && !upperMsg.includes("HTTP") && !/\/[^\s]*ERROR[^\s]*/i.test(safeMsg));
-    if (isErrorMsg) {
+
+    const YELLOW = '#facc15';
+
+    let renderedMsg = msg;
+    if (isFfufDiscovery) {
+        const m = safeMsg.match(/^\[FFUF\]\s+(\w+)\s+(https?:\/\/\S+)\s*→\s*(\S+)$/);
+        if (m) {
+            renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[FFUF]</span> <span style="color:var(--text-muted);font-size:0.8rem;">${m[1]}</span> <span style="color:${YELLOW};font-family:monospace;">${m[2]}</span> <span style="color:var(--text-muted);">→</span> <span style="color:${YELLOW};font-weight:600;">${m[3]}</span>`;
+        } else {
+            renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[FFUF]</span> <span style="color:${YELLOW};font-family:monospace;">${safeMsg.slice(6).trim()}</span>`;
+        }
+    } else if (isZapDiscovery) {
+        const url = safeMsg.slice(5).trim();
+        renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[ZAP]</span> <span style="color:${YELLOW};font-family:monospace;">${url}</span>`;
+    } else if (isErrorMsg) {
         badgeClass = "badge-error"; badgeText = "오류"; msgColor = "var(--critical)";
     } else if (upperMsg.includes("DISCOVERY") || upperMsg.includes("FOUND") || upperMsg.includes("식별")) {
-        msgColor = "var(--high)";
+        if (s !== "RECON" && s !== "NETWORK") msgColor = "var(--high)";
     } else if (upperMsg.includes("COMPLETE") || upperMsg.includes("성공") || upperMsg.includes("SUCCESS")) {
-        msgColor = "var(--secondary)";
+        if (s !== "RECON" && s !== "NETWORK") msgColor = "var(--secondary)";
     }
 
     const timeStr = `<span class="log-time">${new Date().toLocaleTimeString('en-US', { hour12: false })}</span>`;
     const badgeStr = `<span class="log-badge ${badgeClass}">${badgeText}</span>`;
-    div.innerHTML = `${timeStr}${badgeStr}<span class="log-msg" style="word-break:break-all;">${prefix}<span style="color:${msgColor};">${msg}</span></span>`;
+    const msgContent = (isFfufDiscovery || isZapDiscovery)
+        ? renderedMsg
+        : `${prefix}<span style="color:${msgColor};">${msg}</span>`;
+    div.innerHTML = `${timeStr}${badgeStr}<span class="log-msg" style="word-break:break-all;">${msgContent}</span>`;
 
     win.appendChild(div);
     if (autoScroll) win.scrollTop = win.scrollHeight;

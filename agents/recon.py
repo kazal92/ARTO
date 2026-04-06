@@ -46,13 +46,16 @@ async def run_recon_agent(
     yield stream_log(session_dir, f'정찰 시작: {target_url}', 'Recon', 5)
 
     zap = ZAPClient()
-    ffuf_urls = []  # deep recon 대상 추적용
+    ffuf_urls = []
+    ffuf_url_set = set()
+    ffuf_status_map = {}  # url → status 코드 저장
 
     # 1. ZAP Spider
+    spider_visited_paths = set()
     if not enable_zap:
-        yield stream_log(session_dir, '1. ZAP Spider가 비활성화되어 건너뜁니다.', 'Recon', 10)
+        yield stream_log(session_dir, 'ZAP Spider가 비활성화되어 건너뜁니다.', 'Recon', 10)
     else:
-        yield stream_log(session_dir, '1. OWASP ZAP Spider 탐색 시작...', 'Recon', 10)
+        yield stream_log(session_dir, 'OWASP ZAP Spider 탐색 시작...', 'Recon', 10)
         async for update in run_zap_spider(target_url, session_dir, headers):
             if is_cancelled(session_dir):
                 break
@@ -61,12 +64,17 @@ async def run_recon_agent(
                 yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
             elif utype == 'command':
                 yield stream_log(session_dir, update['cmd'], 'Command')
+            elif utype == 'item':
+                u = update['data'].get('url', '')
+                if u and not is_static_file(u):
+                    spider_visited_paths.add(urllib.parse.urlparse(u).path.rstrip('/').lower())
+                    yield stream_log(session_dir, f'[ZAP] {u}', 'Recon')
 
     # 2. FFuF Fuzzing
     if not enable_ffuf:
-        yield stream_log(session_dir, '2. ffuf 퍼징이 비활성화되어 건너뜁니다.', 'Recon', 50)
+        yield stream_log(session_dir, 'FFuF 퍼징이 비활성화되어 건너뜁니다.', 'Recon', 50)
     else:
-        yield stream_log(session_dir, '2. FFuF 디렉토리/파일 퍼징 중...', 'Recon', 50)
+        yield stream_log(session_dir, 'FFuF 디렉토리/파일 퍼징 중...', 'Recon', 50)
         async for update in run_ffuf(target_url, session_dir, headers, ffuf_options=ffuf_options, ffuf_wordlist=ffuf_wordlist):
             if is_cancelled(session_dir):
                 break
@@ -79,8 +87,17 @@ async def run_recon_agent(
                 items = [update['data']] if utype == 'item' else update['data']
                 for res in items:
                     u = res.get('url')
-                    if u and not is_static_file(u):
-                        ffuf_urls.append(u)
+                    if u and not is_static_file(u) and u not in ffuf_url_set:
+                        ffuf_url_set.add(u)
+                        status = res.get('status', '')
+                        method = res.get('method', 'GET').upper()
+                        ffuf_status_map[u] = str(status)
+                        # Deep Recon 대상: Spider 미방문 + 200대 응답만
+                        norm = urllib.parse.urlparse(u).path.rstrip('/').lower()
+                        status_code = int(status) if str(status).isdigit() else 0
+                        if norm not in spider_visited_paths and 200 <= status_code < 300:
+                            ffuf_urls.append(u)
+                        yield stream_log(session_dir, f'[FFUF] {method} {u} → {status}', 'Recon')
 
     # 3. Deep Recon: ffuf 발견 경로에 추가 Spider 실행
     if not enable_deep_recon:
@@ -90,9 +107,8 @@ async def run_recon_agent(
     elif len(ffuf_urls) > 20:
         yield stream_log(session_dir, f'[Warning] 발견된 신규 경로가 너무 많습니다 ({len(ffuf_urls)}개). 와일드카드 응답이 의심되어 재귀적 크롤링을 건너뜁니다.', 'Recon', 70)
     elif not ffuf_urls:
-        yield stream_log(session_dir, '[Recon] 분석 가능한 신규 공격 요인이 식별되지 않아 심층 탐색을 종료합니다.', 'Recon', 70)
+        yield stream_log(session_dir, '[Recon] Deep Recon 대상 없음 (Spider 기방문 또는 2xx 아닌 경로만 발견).', 'Recon', 70)
     else:
-        yield stream_log(session_dir, f'[Recon] {len(ffuf_urls)}개의 신규 경로를 기반으로 재귀적 자산 탐색을 시작합니다.', 'Recon', 70)
         for u in ffuf_urls:
             if is_cancelled(session_dir):
                 break
@@ -105,9 +121,10 @@ async def run_recon_agent(
                     yield stream_log(session_dir, update['msg'], 'Recon', update['progress'])
                 elif utype == 'command':
                     yield stream_log(session_dir, update['cmd'], 'Command')
-
-    # 4. ZAP 히스토리에서 최종 엔드포인트 수집
-    yield stream_log(session_dir, '[Sync] ZAP 히스토리 기반 엔드포인트 수집 중...', 'Recon')
+                elif utype == 'item':
+                    disc_u = update['data'].get('url', '')
+                    if disc_u and not is_static_file(disc_u):
+                        yield stream_log(session_dir, f'[ZAP] {disc_u}', 'Recon')
 
     endpoints = []
     seen_keys = set()
@@ -177,11 +194,16 @@ async def run_recon_agent(
                 if injected:
                     req_raw = req_raw[:insert_pos] + '\n' + injected.rstrip('\n') + req_raw[insert_pos:]
 
+            ep_sources = ['zap']
+            if h_u in ffuf_url_set:
+                ep_sources.append('ffuf')
+
             endpoints.append({
                 'url': h_u,
                 'method': h_m,
                 'status': h_status,
                 'source': 'zap_history',
+                'sources': ep_sources,
                 'id': msg.get('id'),
                 'request_raw': req_raw,
                 'response_raw': res_raw,
@@ -209,7 +231,6 @@ async def run_recon_agent(
 
     recon_results = {'target': target_url, 'endpoints': endpoints}
 
-    yield stream_log(session_dir, f'[Complete] 최종적으로 {len(endpoints)}개의 유효 공격 데이터를 확보했습니다.', 'Recon')
     yield stream_log(session_dir, f'[Recon] 정찰 단계를 성공적으로 완료하였습니다. (총 {len(endpoints)}개의 공격 접점 확보)', 'Recon', 100)
     save_tool_result(session_dir, 'recon_map', recon_results)
     yield stream_custom(session_dir, {'type': 'recon_result', 'data': recon_results})

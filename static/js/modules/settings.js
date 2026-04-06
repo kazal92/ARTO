@@ -3,6 +3,14 @@
  * AI 설정, 프록시 설정, 테마 관련 로직
  */
 
+const DEFAULT_AI_PROMPT = `당신은 전문적인 보안 침투 테스트 전문가이자 취약점 분석가입니다.
+다음 HTTP 요청/응답 컨텍스트를 분석하여 잠재적인 보안 취약점을 식별하십시오.
+
+### 중요 지침:
+- **단순히 확실한 취약점(Info-Leak 등) 뿐만 아니라, 추가 정밀 침투가 필요한 "잠재적 공격 벡터(Attack Vector)"도 포함하여 과감히 도출하십시오.**
+- **모든 설명, 제목, 추천 사항 등 모든 텍스트 필드의 내용은 반드시 한국어로 작성하십시오.**
+- 출력은 반드시 유효한 JSON 객체 리스트 형식이어야 합니다.`;
+
 // ── AI 설정 토글 ────────────────────────────────────────
 
 function toggleAiSettings(shouldUpdateUrl = false) {
@@ -110,7 +118,7 @@ function loadSettings() {
     set('aiUrl', aiUrl);
     set('aiModel', aiModel);
     set('customHeaders', localStorage.getItem('customHeaders') || '');
-    set('aiPromptCustom', localStorage.getItem('aiPromptCustom') || '');
+    set('aiPromptCustom', localStorage.getItem('aiPromptCustom') || DEFAULT_AI_PROMPT);
 
     if (document.getElementById('proxyEnabled')) {
         document.getElementById('proxyEnabled').checked = localStorage.getItem('proxyEnabled') === 'true';

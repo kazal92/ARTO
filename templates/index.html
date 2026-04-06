@@ -813,6 +813,8 @@
                                     <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status
                                         <i class="fa-solid fa-sort ms-1"></i>
                                     </th>
+                                    <th width="100" class="text-center sortable" onclick="sortEndpoints('sources')">Source <i
+                                            class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i
                                             class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i
@@ -845,6 +847,15 @@
                                             onkeyup="applyFilters()"
                                             style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
                                     </th>
+                                    <th>
+                                        <select id="filterSource" onchange="applyFilters()"
+                                            style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                            <option value="">All</option>
+                                            <option value="zap_only">ZAP</option>
+                                            <option value="ffuf_only">ffuf</option>
+                                            <option value="both">ZAP+ffuf</option>
+                                        </select>
+                                    </th>
                                     <th></th>
                                     <th></th>
                                     <th></th>
@@ -852,7 +863,7 @@
                             </thead>
                             <tbody id="endpointsTableBody">
                                 <tr>
-                                    <td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td>
+                                    <td colspan="10" class="empty-state">데이터를 불러오는 중입니다...</td>
                                 </tr>
                             </tbody>
                         </table>

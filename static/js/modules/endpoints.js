@@ -42,6 +42,7 @@ function applyFilters() {
     const methodVal = document.getElementById('filter메소드').value.toLowerCase();
     const urlVal = document.getElementById('filterUrl').value.toLowerCase();
     const statusVal = document.getElementById('filterStatus').value.toLowerCase();
+    const sourceVal = document.getElementById('filterSource')?.value || '';
 
     let filtered = allEndpoints.filter(ep => {
         const method = ep.method || 'GET';
@@ -50,7 +51,14 @@ function applyFilters() {
         const matchMethod = method.toLowerCase().includes(methodVal);
         const matchUrl = ep.url?.toLowerCase().includes(urlVal);
         const matchStatus = (ep.status || '').toString().toLowerCase().includes(statusVal);
-        return matchAi && matchMethod && matchUrl && matchStatus;
+        if (!matchAi || !matchMethod || !matchUrl || !matchStatus) return false;
+        if (sourceVal) {
+            const srcs = ep.sources || [];
+            if (sourceVal === 'zap_only' && !(srcs.includes('zap') && !srcs.includes('ffuf'))) return false;
+            if (sourceVal === 'ffuf_only' && !srcs.includes('ffuf')) return false;
+            if (sourceVal === 'both' && !(srcs.includes('zap') && srcs.includes('ffuf'))) return false;
+        }
+        return true;
     });
 
     filtered.sort((a, b) => {
@@ -71,6 +79,8 @@ function applyFilters() {
             valA = a.time || ''; valB = b.time || '';
         } else if (col === 'size') {
             valA = a.responseSize || 0; valB = b.responseSize || 0;
+        } else if (col === 'sources') {
+            valA = (a.sources || []).join(','); valB = (b.sources || []).join(',');
         } else { valA = 0; valB = 0; }
 
         if (valA < valB) return endpointSortState.direction === 'asc' ? -1 : 1;
@@ -125,7 +135,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
     }
 
     if (totalCount === 0) {
-        el.innerHTML = '<tr><td colspan="9" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
+        el.innerHTML = '<tr><td colspan="10" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
         const pag = document.getElementById('endpointPagination');
         if (pag) pag.innerHTML = '';
         return;
@@ -173,6 +183,10 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
             const bytes = parseInt(n);
             return isNaN(bytes) ? '-' : bytes;
         })();
+        const srcs = ep.sources || ['zap'];
+        const srcBadges = srcs.map(s =>
+            `<span class="badge-source badge-source-${s}">${s.toUpperCase()}</span>`
+        ).join(' ');
         tr.innerHTML = `
             <td class="text-center"><input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isAiTarget ? 'checked' : ''} onchange="handleEndpointCheck(this)"></td>
             <td class="text-center text-muted" style="font-size:0.72rem;">${ep.originalIndex || (globalIdx + 1)}</td>
@@ -180,6 +194,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
             <td class="text-center"><span class="method-tag ${methodClass}">${methodUpper}</span></td>
             <td class="font-mono" style="word-break:break-all;color:var(--text-main);font-size:0.82rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ep.url}">${ep.url}</td>
             <td class="text-center">${statusBadge}</td>
+            <td class="text-center">${srcBadges}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${ep.time || '-'}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${resSize}</td>
             <td class="text-center">

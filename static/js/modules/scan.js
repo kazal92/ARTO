@@ -232,6 +232,7 @@ async function pollZapHistory() {
                         method: m.method || 'GET',
                         status: parsedStatus,
                         source: 'zap_history',
+                        sources: ['zap'],
                         request_raw: (m.requestHeader || '') + (m.requestBody || ''),
                         response_raw: (m.responseHeader || '') + (m.responseBody || ''),
                         time: formatTimeWithMs(new Date()),

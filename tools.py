@@ -95,9 +95,6 @@ async def run_zap_spider(target_url: str, session_dir: str, headers: Dict = None
     """OWASP ZAP Spider를 사용하여 엔드포인트를 실시간으로 수집합니다."""
     zap = ZAPClient()
 
-    yield {"type": "command", "cmd": f"# OWASP ZAP Spider 가동: {target_url}"}
-    yield {"type": "progress", "msg": "[ZAP] API 인터페이스 연결 중...", "progress": 10}
-
     try:
         if not await zap.wait_for_zap(timeout=60):
             yield {"type": "progress", "msg": "[ZAP] API 서버 응답 없음 (연결 실패)", "progress": 10}
@@ -108,7 +105,6 @@ async def run_zap_spider(target_url: str, session_dir: str, headers: Dict = None
             await zap.add_replacer_rules(headers)
             yield {"type": "progress", "msg": f"[ZAP] 커스텀 헤더 {len(headers)}개 등록 완료", "progress": 11}
 
-        yield {"type": "progress", "msg": "[ZAP] Spider 프로세스 초기화 중...", "progress": 12}
         scan_id = await zap.start_spider(target_url)
         if not scan_id:
             yield {"type": "progress", "msg": "[ZAP] Spider 시작 세션 생성 실패", "progress": 10}
@@ -129,8 +125,6 @@ async def run_zap_spider(target_url: str, session_dir: str, headers: Dict = None
                 if u not in seen_urls:
                     seen_urls.add(u)
                     yield {"type": "item", "data": {"url": u, "method": "GET", "source": "zap_spider"}}
-
-            yield {"type": "progress", "msg": f"[ZAP] Spider 탐색 중... ({status}%) [식별: {len(seen_urls)}개]", "progress": 10 + int(status * 0.4)}
 
             if status >= 100:
                 break
@@ -182,7 +176,6 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
             cmd_base += f' -H "{k}: {v}"'
 
     yield {"type": "command", "cmd": f"$ {cmd_base}"}
-    yield {"type": "progress", "msg": f"[FFuF] 디렉토리 탐색 가동 (Wordlist: {os.path.basename(wordlist)})", "progress": 20}
 
     results = []
     found_count = 0
@@ -223,9 +216,6 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
         yield {"type": "progress", "msg": "[FFuF] 탐색을 마쳤으나 유효한 엔드포인트를 발견하지 못했습니다. (응답 코드 필터링 확인 필요)", "progress": 50}
     else:
         yield {"type": "progress", "msg": f"[FFuF] 탐색 종료. 총 {found_count}개의 유효 경로를 확보했습니다.", "progress": 50}
-
-    yield {"type": "result", "data": results}
-
 
 def minimize_request_raw(raw: str) -> str:
     """분석에 불필요한 헤더를 제거하여 토큰을 절약합니다."""

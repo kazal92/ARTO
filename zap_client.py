@@ -87,7 +87,7 @@ class ZAPClient:
     async def get_all_messages(self, base_url=None):
         """ZAP에 기록된 모든 메시지의 요청/응답 데이터를 가져옵니다."""
         params = {"baseurl": base_url} if base_url else {}
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.get(f"{self.api_url}/core/view/messages/", params=params)
             if resp.status_code != 200:
                 return []

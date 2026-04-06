@@ -460,7 +460,7 @@ async function loadHistoryList(skipSwitch = false) {
 async function startNewScanWizard() {
     const name = document.getElementById('newProjectName').value;
     if (!name) return alert("프로젝트 명칭을 입력해 주세요.");
-    const target = "http://172.27.50.37:8002/";
+    const target = "http://172.27.50.37:8002";
 
     try {
         const res = await fetch(`${API_BASE}/api/project/create`, {
