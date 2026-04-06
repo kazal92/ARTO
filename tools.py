@@ -103,7 +103,6 @@ async def run_zap_spider(target_url: str, session_dir: str, headers: Dict = None
 
         if headers:
             await zap.add_replacer_rules(headers)
-            yield {"type": "progress", "msg": f"[ZAP] 커스텀 헤더 {len(headers)}개 등록 완료", "progress": 11}
 
         scan_id = await zap.start_spider(target_url)
         if not scan_id:

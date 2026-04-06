@@ -44,6 +44,10 @@ async def run_recon_agent(
     ffuf_wordlist: str = ''
 ):
     yield stream_log(session_dir, f'정찰 시작: {target_url}', 'Recon', 5)
+    
+    # 초기 설정 로그
+    if headers:
+        yield stream_log(session_dir, f'[Recon] 커스텀 헤더 {len(headers)}개 설정됨: {", ".join(headers.keys())}', 'Recon', 5)
 
     zap = ZAPClient()
     ffuf_urls = []
@@ -113,7 +117,8 @@ async def run_recon_agent(
             if is_cancelled(session_dir):
                 break
             yield stream_log(session_dir, f'[Deep Recon] {u} 하위 노드 탐색 중...', 'Recon')
-            async for update in run_zap_spider(u, session_dir, headers):
+            # Deep Recon에서는 headers=None으로 커스텀 헤더 중복 등록 방지
+            async for update in run_zap_spider(u, session_dir, headers=None):
                 if is_cancelled(session_dir):
                     break
                 utype = update.get('type')

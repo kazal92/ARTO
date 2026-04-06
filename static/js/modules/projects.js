@@ -397,26 +397,6 @@ async function updateProjectStatus(sId, newStatus) {
     } catch (e) { alert("상태 변경 에러: " + e); }
 }
 
-function exitProjectMode(targetSec = 'section-projects') {
-    localStorage.removeItem('currentSessionId');
-    currentProject = { id: null, name: '프로젝트 미선택', target: '' };
-
-    const subScan = document.getElementById('sub-scan');
-    const subPrecheck = document.getElementById('sub-precheck');
-    if (subScan) subScan.style.display = 'none';
-    if (subPrecheck) subPrecheck.style.display = 'none';
-    const topbarScanControls = document.getElementById('topbarScanControls');
-    if (topbarScanControls) topbarScanControls.style.display = 'none';
-
-    const breadcrumbText = document.getElementById('breadcrumbText');
-    if (breadcrumbText) {
-        breadcrumbText.innerHTML = '<i class="fa-solid fa-folder-tree text-warning me-1"></i> 모든 프로젝트 허브';
-    }
-
-    if (typeof loadHistoryList === 'function') loadHistoryList(targetSec !== 'section-projects');
-    switchSection(targetSec);
-}
-
 function sortAndRenderProjects(type) {
     if (type === 'scan') {
         renderProjectGrid(globalSessions, 'projectsGrid', 'scan');

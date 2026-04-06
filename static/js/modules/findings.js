@@ -13,8 +13,6 @@ function renderCards(cardsArray) {
     tbody.innerHTML = '';
     let crit = 0, high = 0, medlow = 0;
 
-    console.log("renderCards called with:", cardsArray.length, "items");
-
     if (!Array.isArray(cardsArray) || cardsArray.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" class="empty-state">현재 시그니처와 일치하는 위협이 탐지되지 않았습니다.</td></tr>';
         ['statCritical', 'statHigh', 'statMedLow'].forEach(id => {
@@ -25,16 +23,6 @@ function renderCards(cardsArray) {
     }
 
     cardsArray.forEach((card, index) => {
-        if (index === 0) {
-            console.log("First card data:", {
-                title: card.title,
-                ttp: card.ttp,
-                owasp: card.owasp,
-                severity: card.severity,
-                confidence: card.confidence
-            });
-        }
-        
         const sev = (card.severity || '').toString().toUpperCase();
         let sevClass = "sev-low";
         if (sev.includes("CRITICAL")) { sevClass = "sev-critical"; crit++; }
