@@ -110,7 +110,13 @@ async function loadSession(sessionId) {
         const cardsJson = await resCards.json();
         if (cardsJson.status === "success") {
             aiCardsData = JSON.parse(cardsJson.content);
+            console.log("✓ AI Findings loaded:", aiCardsData.length, "items");
+            if (aiCardsData.length > 0) {
+                console.log("  First item TTP:", aiCardsData[0].ttp, "OWASP:", aiCardsData[0].owasp);
+            }
             renderCards(aiCardsData);
+        } else {
+            console.warn("API returned non-success status:", cardsJson.status);
         }
     } catch (e) { console.warn("Findings load failed", e); }
 
