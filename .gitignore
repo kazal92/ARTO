@@ -1,16 +1,32 @@
 # 🔒 보안 및 캐시 파일 이그노어
 .env
+.env.local
+.arto.pid
+
+# 📦 가상환경 및 의존성 (자동 재생성)
+.venv/
+venv/
+env/
+node_modules/
 
 # 📂 실행 및 결과물 디렉토리 (주요 결과 누적 방지)
 results/
 __pycache__/
 
-# 📦 백업 및 압축 파일
+# 📝 백업 및 압축 파일
 *.zip
 *.tar
 *.gz
+*.tar.gz
 
 # 📝 기타 캐시/로그 파일
 *.log
 .pytest_cache/
 .DS_Store
+.vscode/
+.idea/
+
+# 임시 문서
+CLEANUP_REPORT.md
+*.tmp
+
