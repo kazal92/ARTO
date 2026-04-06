@@ -141,6 +141,53 @@ async def get_ai_targets(session_id: str):
         return {"status": "ok", "targets": json.load(f)}
 
 
+@router.post("/api/session/{session_id}/save_recon_map")
+async def save_recon_map(session_id: str, request: Request):
+    """ZAP 히스토리 로드 후 endpoints를 recon_map.json에 저장 (기존 데이터와 병합)"""
+    session_dir = find_session_dir(session_id)
+    if not session_dir:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "유효하지 않은 세션 ID입니다."})
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    endpoints = body.get("endpoints", [])
+    target = body.get("target", "")
+
+    if not endpoints:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "저장할 엔드포인트가 없습니다."})
+
+    recon_map_path = os.path.join(session_dir, "recon_map.json")
+
+    # 기존 recon_map.json와 병합 (스캔 결과 보존)
+    existing_endpoints = []
+    existing_target = target
+    if os.path.exists(recon_map_path):
+        try:
+            with open(recon_map_path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+                existing_endpoints = existing.get("endpoints", [])
+                if not existing_target:
+                    existing_target = existing.get("target", "")
+        except Exception:
+            pass
+
+    # 중복 제거: METHOD:URL 기준
+    existing_keys = {f"{(ep.get('method') or 'GET').upper()}:{ep.get('url', '')}" for ep in existing_endpoints}
+    merged = list(existing_endpoints)
+    for ep in endpoints:
+        key = f"{(ep.get('method') or 'GET').upper()}:{ep.get('url', '')}"
+        if key not in existing_keys:
+            merged.append(ep)
+            existing_keys.add(key)
+
+    save_tool_result(session_dir, "recon_map", {"target": existing_target, "endpoints": merged})
+    return {"status": "ok", "saved": len(merged), "added": len(merged) - len(existing_endpoints)}
+
+
 @router.post("/api/session/{session_id}/run_ai")
 async def run_ai(session_id: str, request: Request):
     """엔드포인트 데이터 기반으로 AI 분석 실행 (SSE)"""

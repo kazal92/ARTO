@@ -212,11 +212,8 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
                     }
                     results.append(item)
                     yield {"type": "item", "data": item}
-
-                    if found_count % 10 == 0:
-                        yield {"type": "progress", "msg": f"[FFuF] 진행 중... {found_count}개의 숨겨진 경로 식별 완료", "progress": 25}
-            except (json.JSONDecodeError, KeyError):
-                continue
+            except json.JSONDecodeError:
+                pass
 
     if found_count == 0:
         yield {"type": "progress", "msg": "[FFuF] 탐색을 마쳤으나 유효한 엔드포인트를 발견하지 못했습니다. (응답 코드 필터링 확인 필요)", "progress": 50}

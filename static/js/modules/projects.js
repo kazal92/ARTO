@@ -433,6 +433,8 @@ async function loadHistoryList(skipSwitch = false) {
                     }
                 }, 300);
             }
+            // 히스토리 로드 후 필터 적용
+            filterProjects();
         }
     } catch (e) { console.error("History Error", e); }
 }

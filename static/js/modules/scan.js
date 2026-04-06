@@ -268,6 +268,13 @@ function stopZapPolling() {
 }
 
 async function loadZapHistory() {
+    // [FIX #4] 세션 없으면 경고 후 중단
+    const sessionId = currentProject.id || localStorage.getItem('currentSessionId');
+    if (!sessionId) {
+        alert('ZAP 히스토리를 저장하려면 먼저 프로젝트를 선택하거나 스캔을 시작해야 합니다.');
+        return;
+    }
+
     try {
         appendLog("ZAP 히스토리를 가져오는 중입니다...", "System");
         const res = await fetch(`${API_BASE}/api/zap/history`);
@@ -282,14 +289,15 @@ async function loadZapHistory() {
                 if (parts.length >= 2 && (parts[1] === '0' || parts[1] === '502')) return false;
                 return true;
             }).map(msg => {
+                // [FIX #1] method만 requestHeader에서 파싱, url은 msg.uri 직접 사용
                 let method = 'GET';
-                let url = '-';
                 if (msg.requestHeader) {
                     const firstLine = msg.requestHeader.split('\n')[0].trim();
                     const parts = firstLine.split(' ');
                     if (parts.length >= 1) method = parts[0].toUpperCase();
-                    if (parts.length >= 2) url = parts[1];
                 }
+                const url = msg.uri || '-';
+
                 let status = msg.statusCode || '-';
                 if (msg.responseHeader) {
                     const firstLine = msg.responseHeader.split('\n')[0].trim();
@@ -300,7 +308,8 @@ async function loadZapHistory() {
                     url: url,
                     method: method,
                     status: status,
-                    source: 'ZAP_History',
+                    source: 'zap_history',
+                    sources: ['zap'],  // [FIX #2]
                     request_raw: (msg.requestHeader || "") + (msg.requestBody || ""),
                     response_raw: (msg.responseHeader || "") + (msg.responseBody || ""),
                     time: formatTimeWithMs(new Date()),
@@ -328,6 +337,35 @@ async function loadZapHistory() {
 
             renderEndpoints(allEndpoints);
             appendLog(`ZAP 히스토리에서 ${addedCount}개의 신규 엔드포인트를 가져왔습니다.`, "System");
+
+            // [FIX #3, #5] recon_map.json에 저장 (세션 재로드 시 복원 + AI 분석 target 확보)
+            try {
+                let zapTarget = '';
+                for (const ep of mapped) {
+                    if (ep.url && ep.url.startsWith('http')) {
+                        try {
+                            const parsed = new URL(ep.url);
+                            zapTarget = `${parsed.protocol}//${parsed.host}`;
+                            break;
+                        } catch (e) {}
+                    }
+                }
+                const saveRes = await fetch(`${API_BASE}/api/session/${sessionId}/save_recon_map`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target: zapTarget, endpoints: mapped })
+                });
+                const saveData = await saveRes.json();
+                if (saveData.status === 'ok') {
+                    appendLog(`recon_map.json 저장 완료 (총 ${saveData.saved}개 엔드포인트)`, "System");
+                } else {
+                    appendLog(`recon_map.json 저장 실패: ${saveData.message}`, "System");
+                }
+            } catch (saveErr) {
+                console.warn('recon_map save failed:', saveErr);
+                appendLog('recon_map.json 저장 중 오류 발생', "System");
+            }
+
             alert(`ZAP 히스토리에서 ${addedCount}개의 신규 패킷을 가져와 엔드포인트 목록에 추가했습니다.`);
         } else {
             alert("ZAP 히스토리 로드 실패: " + (data.message || "Unknown Error"));

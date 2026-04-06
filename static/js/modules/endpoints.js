@@ -286,7 +286,10 @@ async function autoTarget() {
 
 function runAiAnalysis() {
     const sessionId = localStorage.getItem('currentSessionId');
-    if (!sessionId) return;
+    if (!sessionId) {
+        alert('AI 분석을 시작하려면 먼저 프로젝트를 선택해야 합니다.');
+        return;
+    }
     if (aiTargetUrls.size === 0) {
         alert('AI 분석 대상이 없습니다. 먼저 타겟을 지정하세요.');
         return;
