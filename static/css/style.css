@@ -855,6 +855,7 @@
             font-size: 0.74rem;
             color: var(--text-main);
             white-space: pre-wrap;
+            word-break: break-all;
             max-height: 320px;
             overflow: auto;
             background: rgba(0, 0, 0, 0.2);

@@ -105,9 +105,6 @@ async function loadSession(sessionId) {
                 const aiModel = document.getElementById('aiModel');
                 if (aiModel && ai.model) aiModel.value = ai.model;
 
-                const aiModelSelect = document.getElementById('aiModelSelect');
-                if (aiModelSelect && ai.model) aiModelSelect.value = ai.model;
-
                 const aiPrompt = document.getElementById('aiPromptCustom');
                 if (aiPrompt && ai.custom_prompt) aiPrompt.value = ai.custom_prompt;
 

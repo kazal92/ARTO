@@ -96,10 +96,7 @@ async function startScan() {
                             ? document.getElementById('vertexApiKey').value
                             : document.getElementById('lmstudioApiKey').value),
                     base_url: document.getElementById('aiUrl').value,
-                    // [수정] Gemini의 경우 aiModelSelect에서 값을 우선적으로 가져옴
-                    model: (document.getElementById('aiType').value === 'gemini' 
-                            ? document.getElementById('aiModelSelect').value 
-                            : document.getElementById('aiModel').value) || document.getElementById('aiModel').value,
+                    model: document.getElementById('aiModel').value,
                     max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
                     custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
                 }
@@ -410,9 +407,7 @@ async function startAiScan(sessionId) {
                 ? document.getElementById('vertexApiKey')?.value
                 : document.getElementById('lmstudioApiKey')?.value),
         base_url: document.getElementById('aiUrl')?.value || '',
-        model: (document.getElementById('aiType')?.value === 'gemini' 
-                ? document.getElementById('aiModelSelect')?.value 
-                : document.getElementById('aiModel')?.value) || document.getElementById('aiModel')?.value || '',
+        model: document.getElementById('aiModel')?.value || '',
         max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
         custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
     };
