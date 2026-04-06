@@ -58,7 +58,14 @@ async def create_project(req: ScanRequest):
             json.dump({
                 "project_name": p_name,
                 "target": req.target_url or "",
-                "project_type": p_type
+                "project_type": p_type,
+                "headers": req.headers,
+                "ai_config": req.ai_config,
+                "ffuf_options": req.ffuf_options,
+                "ffuf_wordlist": req.ffuf_wordlist,
+                "enable_zap_spider": req.enable_zap_spider,
+                "enable_ffuf": req.enable_ffuf,
+                "enable_deep_recon": req.enable_deep_recon
             }, f, ensure_ascii=False, indent=2)
 
         stream_log(session_dir, "프로젝트가 성공적으로 생성되었습니다. (대시보드 진입 대기)", "System", 0)
@@ -115,7 +122,15 @@ async def start_scan(req: ScanRequest, request: Request):
                 with open(info_file, "w", encoding="utf-8") as f:
                     json.dump({
                         "project_name": req.project_name if req.project_name else os.path.basename(session_dir),
-                        "target": req.target_url
+                        "target": req.target_url,
+                        "project_type": req.project_type,
+                        "headers": req.headers,
+                        "ai_config": req.ai_config,
+                        "ffuf_options": req.ffuf_options,
+                        "ffuf_wordlist": req.ffuf_wordlist,
+                        "enable_zap_spider": req.enable_zap_spider,
+                        "enable_ffuf": req.enable_ffuf,
+                        "enable_deep_recon": req.enable_deep_recon
                     }, f, ensure_ascii=False, indent=2)
             except Exception as e:
                 pass

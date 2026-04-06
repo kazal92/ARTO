@@ -30,6 +30,42 @@ function switchSection(sectionId) {
     updateBrowserUrlFromSection(sectionId);
 }
 
+/**
+ * 프로젝트 모드(세션 유지 상태)를 종료하고 일반 섹션으로 이동합니다.
+ * @param {string} sectionId - 이동할 섹션 ID (기본값: 'section-projects')
+ */
+function exitProjectMode(sectionId = 'section-projects') {
+    // 1. 현재 세션 정보 삭제
+    localStorage.removeItem('currentSessionId');
+    if (typeof currentProject !== 'undefined') {
+        currentProject = { id: null, name: null };
+    }
+    
+    // 2. 섹션 전환
+    switchSection(sectionId);
+    
+    // 3. UI 초기화
+    const subScan = document.getElementById('sub-scan');
+    const subPrecheck = document.getElementById('sub-precheck');
+    if (subScan) subScan.style.display = 'none';
+    if (subPrecheck) subPrecheck.style.display = 'none';
+
+    const topbarScanControls = document.getElementById('topbarScanControls');
+    if (topbarScanControls) topbarScanControls.style.display = 'none';
+
+    const breadcrumbText = document.getElementById('breadcrumbText');
+    if (breadcrumbText) {
+        if (sectionId === 'section-dashboard') breadcrumbText.innerHTML = '<i class="fa-solid fa-house text-primary me-1"></i> ARTO Security Center';
+        else breadcrumbText.innerText = '모든 프로젝트 허브';
+    }
+
+    const scanStatusText = document.getElementById('scanStatusText');
+    if (scanStatusText) scanStatusText.innerHTML = '<i class="fa-solid fa-house-chimney text-muted me-2"></i>대기 중';
+    
+    const progressBar = document.getElementById('progressBar');
+    if (progressBar) progressBar.style.width = '0%';
+}
+
 function updateBrowserUrlFromSection(sectionId) {
     let newPath = "/";
     const sid = (typeof currentProject !== 'undefined' && currentProject.id)

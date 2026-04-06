@@ -245,12 +245,17 @@ function switchPrecheckTab(mode) {
     ['alive', 'shodan', 'dork'].forEach(m => {
         const s = document.getElementById(`section-${m}`);
         if (s) {
-            // 인라인 스타일 대신 클래스 토글 사용 (CSS의 display: none/block 정책 준수)
             if (m === mode) s.classList.add('active');
             else s.classList.remove('active');
-
-            // 혹시 남아있을 수 있는 인라인 스타일 제거 (중요!)
             s.style.display = '';
+        }
+    });
+
+    document.querySelectorAll('.glass-tab-btn').forEach(btn => {
+        if (btn.getAttribute('onclick')?.includes(`'${mode}'`)) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
         }
     });
 }

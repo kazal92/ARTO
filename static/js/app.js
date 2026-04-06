@@ -13,6 +13,7 @@ window.onload = () => {
     loadSettings();
     initRouter();
     loadHistoryList();
+    if (typeof loadWordlists === 'function') loadWordlists();
 };
 
 function initRouter() {

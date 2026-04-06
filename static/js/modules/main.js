@@ -57,6 +57,83 @@ async function loadSession(sessionId) {
     document.getElementById('batchList').innerHTML = '<li><a class="dropdown-item text-muted">Scanning...</a></li>';
     document.getElementById('logWindow').innerHTML = `<div class="text-muted">Loading session data...</div>`;
 
+    // 0. 프로젝트 기본 정보 로드 (설정값 복원)
+    try {
+        const resInfo = await fetch(`${API_BASE}/api/history/${sessionId}/json/project_info`);
+        const infoJson = await resInfo.json();
+        if (infoJson.status === "success") {
+            const info = JSON.parse(infoJson.content);
+            currentProject.name = info.project_name || "";
+            currentProject.target = info.target || "";
+
+            // UI 필드 업데이트
+            const targetInput = document.getElementById('targetUrl');
+            if (targetInput) targetInput.value = info.target || "";
+
+            if (info.ffuf_options !== undefined) {
+                const ffufOpts = document.getElementById('ffufOptions');
+                if (ffufOpts) ffufOpts.value = info.ffuf_options;
+            }
+            if (info.ffuf_wordlist) {
+                const ffufWl = document.getElementById('ffufWordlist');
+                if (ffufWl) ffufWl.value = info.ffuf_wordlist;
+            }
+            if (info.enable_zap_spider !== undefined) {
+                const zapCheck = document.getElementById('enableZapSpider');
+                if (zapCheck) zapCheck.checked = info.enable_zap_spider;
+            }
+            if (info.enable_ffuf !== undefined) {
+                const ffufCheck = document.getElementById('enableFfuf');
+                if (ffufCheck) ffufCheck.checked = info.enable_ffuf;
+            }
+            if (info.enable_deep_recon !== undefined) {
+                const deepCheck = document.getElementById('enableDeepRecon');
+                if (deepCheck) deepCheck.checked = info.enable_deep_recon;
+            }
+
+            // AI 설정 복원
+            if (info.ai_config) {
+                const ai = info.ai_config;
+                const aiType = document.getElementById('aiType');
+                if (aiType && ai.type) {
+                    aiType.value = ai.type;
+                    if (typeof toggleAiSettings === 'function') toggleAiSettings();
+                }
+                const aiUrl = document.getElementById('aiUrl');
+                if (aiUrl && ai.base_url) aiUrl.value = ai.base_url;
+
+                const aiModel = document.getElementById('aiModel');
+                if (aiModel && ai.model) aiModel.value = ai.model;
+
+                const aiModelSelect = document.getElementById('aiModelSelect');
+                if (aiModelSelect && ai.model) aiModelSelect.value = ai.model;
+
+                const aiPrompt = document.getElementById('aiPromptCustom');
+                if (aiPrompt && ai.custom_prompt) aiPrompt.value = ai.custom_prompt;
+
+                const batchSize = document.getElementById('maxEndpointsPerBatch');
+                if (batchSize && ai.max_endpoints_per_batch) batchSize.value = ai.max_endpoints_per_batch;
+
+                // API 키 복원 (타입에 따라)
+                if (ai.type === 'gemini') document.getElementById('geminiApiKey').value = ai.api_key || "";
+                else if (ai.type === 'vertex') document.getElementById('vertexApiKey').value = ai.api_key || "";
+                else if (ai.type === 'lmstudio') document.getElementById('lmstudioApiKey').value = ai.api_key || "";
+            }
+
+            // 브레드크럼 업데이트
+            const breadcrumbText = document.getElementById('breadcrumbText');
+            if (breadcrumbText) {
+                breadcrumbText.innerHTML = `<i class="fa-solid fa-folder-open text-warning me-1"></i> ${info.project_name} <span class="text-muted small">(${info.target})</span>`;
+            }
+            // 스캔 버튼 노출
+            document.querySelectorAll('.project-nav-item').forEach(m => m.style.display = 'flex');
+            const topbarScanControls = document.getElementById('topbarScanControls');
+            if (topbarScanControls) topbarScanControls.style.display = 'flex';
+        }
+    } catch (e) {
+        console.warn("Project info load failed", e);
+    }
+
     // 1. AI 분석 대상
     try {
         const resAiInput = await fetch(`${API_BASE}/api/history/${sessionId}/json/ai_input_full_requests`);
@@ -223,62 +300,7 @@ function updateBatchListFromFiles(files) {
     });
 }
 
-// ==========================================
-// 🚦 History API 기반 초기 로드 라우터 엔진
-// ==========================================
-function initRouter() {
-    const path = window.location.pathname;
-
-    if (path === "/" || path === "/projects") {
-        switchSection("section-projects");
-    } else if (path === "/scan/new") {
-        switchSection("section-newscan");
-    } else if (path === "/settings") {
-        switchSection("section-settings");
-    } else if (path === "/precheck/projects") {
-        switchSection("section-precheck-projects");
-    } else if (path === "/precheck/new") {
-        switchSection("section-newprecheck");
-    } else if (path.startsWith("/scan/") || path.startsWith("/precheck/")) {
-        const parts = path.split("/");
-        if (parts.length >= 4) {
-            const sId = parts[2];
-            const tab = parts[3];
-
-            if (sId) {
-                selectProject(sId);
-                setTimeout(() => {
-                    if (tab === "overview") switchSection("section-overview");
-                    else if (tab === "endpoints") switchSection("section-endpoints");
-                    else if (tab === "vulns") switchSection("section-vulns");
-                    else if (tab === "alive") switchSection("section-alive");
-                    else if (tab === "shodan") switchSection("section-shodan");
-                }, 500);
-            }
-        } else {
-            switchSection("section-projects");
-        }
-    } else {
-        switchSection("section-projects");
-    }
-}
-
-// 브라우저 뒤로가기/앞으로가기 대응
-window.addEventListener("popstate", (e) => {
-    if (e.state && e.state.sectionId) {
-        const { sectionId, sId } = e.state;
-        if (sId && currentProject.id !== sId) selectProject(sId);
-        setTimeout(() => switchSection(sectionId), 300);
-    } else {
-        initRouter();
-    }
-});
-
-// 페이지 최초 로드 시 라우터 구동
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(initRouter, 600);
-    loadWordlists();
-});
+// 페이지 최초 로드 시 필요한 로직은 app.js에서 통합 관리합니다.
 
 async function loadWordlists() {
     const select = document.getElementById('ffufWordlist');

@@ -96,7 +96,10 @@ async function startScan() {
                             ? document.getElementById('vertexApiKey').value
                             : document.getElementById('lmstudioApiKey').value),
                     base_url: document.getElementById('aiUrl').value,
-                    model: document.getElementById('aiModel').value,
+                    // [수정] Gemini의 경우 aiModelSelect에서 값을 우선적으로 가져옴
+                    model: (document.getElementById('aiType').value === 'gemini' 
+                            ? document.getElementById('aiModelSelect').value 
+                            : document.getElementById('aiModel').value) || document.getElementById('aiModel').value,
                     max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
                     custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
                 }
@@ -214,10 +217,19 @@ async function pollZapHistory() {
             let added = false;
 
             data.messages.forEach(m => {
-                if (!m.uri || isStaticFile(m.uri)) return;
+                let url = m.uri || m.url || '';
+                
+                // [보강] 만약 uri 필드가 없으면 requestHeader에서 추출 시도
+                if (!url && m.requestHeader) {
+                    const firstLine = m.requestHeader.split('\n')[0].trim();
+                    const parts = firstLine.split(' ');
+                    if (parts.length >= 2) url = parts[1];
+                }
 
-                let parsedStatus = '-';
-                if (m.responseHeader) {
+                if (!url || url === '-' || isStaticFile(url)) return;
+
+                let parsedStatus = m.statusCode || '-';
+                if (m.responseHeader && (parsedStatus === '-' || parsedStatus === '0')) {
                     const fl = m.responseHeader.split('\n')[0].trim();
                     const parts = fl.split(' ');
                     if (parts.length >= 2 && /^\d+$/.test(parts[1])) parsedStatus = parts[1];
@@ -225,10 +237,10 @@ async function pollZapHistory() {
 
                 if (parsedStatus === '0' || parsedStatus === '502') return;
 
-                const key = `${(m.method || 'GET').toUpperCase()}:${m.uri}`;
+                const key = `${(m.method || 'GET').toUpperCase()}:${url}`;
                 if (!existingKeys.has(key)) {
                     allEndpoints.push({
-                        url: m.uri,
+                        url: url,
                         method: m.method || 'GET',
                         status: parsedStatus,
                         source: 'zap_history',
@@ -244,8 +256,10 @@ async function pollZapHistory() {
                 }
             });
 
-            if (added && document.getElementById('section-endpoints').classList.contains('active')) {
-                applyFilters();
+            if (added) {
+                if (document.getElementById('section-endpoints').classList.contains('active')) {
+                    applyFilters();
+                }
             }
         }
     } catch (e) {
@@ -270,10 +284,7 @@ function stopZapPolling() {
 async function loadZapHistory() {
     // [FIX #4] 세션 없으면 경고 후 중단
     const sessionId = currentProject.id || localStorage.getItem('currentSessionId');
-    if (!sessionId) {
-        alert('ZAP 히스토리를 저장하려면 먼저 프로젝트를 선택하거나 스캔을 시작해야 합니다.');
-        return;
-    }
+    // 세션이 없어도 목록에 보여주는 것은 허용합니다. (단, 저장은 안됨)
 
     try {
         appendLog("ZAP 히스토리를 가져오는 중입니다...", "System");
@@ -282,21 +293,30 @@ async function loadZapHistory() {
 
         if (data.status === 'success' && data.messages) {
             const mapped = data.messages.filter(msg => {
-                if (msg.uri && isStaticFile(msg.uri)) return false;
+                let url = msg.uri || msg.url || '';
+                if (!url && msg.requestHeader) {
+                    const firstLine = msg.requestHeader.split('\n')[0].trim();
+                    const parts = firstLine.split(' ');
+                    if (parts.length >= 2) url = parts[1];
+                }
+                if (!url || url === '-' || isStaticFile(url)) return false;
+
                 if (!msg.responseHeader) return false;
                 const firstLine = msg.responseHeader.split('\n')[0].trim();
                 const parts = firstLine.split(' ');
                 if (parts.length >= 2 && (parts[1] === '0' || parts[1] === '502')) return false;
                 return true;
             }).map(msg => {
-                // [FIX #1] method만 requestHeader에서 파싱, url은 msg.uri 직접 사용
                 let method = 'GET';
+                let url = msg.uri || msg.url || '';
+
                 if (msg.requestHeader) {
                     const firstLine = msg.requestHeader.split('\n')[0].trim();
                     const parts = firstLine.split(' ');
                     if (parts.length >= 1) method = parts[0].toUpperCase();
+                    if (!url && parts.length >= 2) url = parts[1];
                 }
-                const url = msg.uri || '-';
+                if (!url) url = '-';
 
                 let status = msg.statusCode || '-';
                 if (msg.responseHeader) {
@@ -338,7 +358,9 @@ async function loadZapHistory() {
             renderEndpoints(allEndpoints);
             appendLog(`ZAP 히스토리에서 ${addedCount}개의 신규 엔드포인트를 가져왔습니다.`, "System");
 
-            // [FIX #3, #5] recon_map.json에 저장 (세션 재로드 시 복원 + AI 분석 target 확보)
+            if (!sessionId) {
+                return alert(`ZAP 히스토리에서 ${addedCount}개를 가져왔습니다. (프로젝트 미선택으로 저장은 되지 않았습니다.)`);
+            }
             try {
                 let zapTarget = '';
                 for (const ep of mapped) {
@@ -388,7 +410,9 @@ async function startAiScan(sessionId) {
                 ? document.getElementById('vertexApiKey')?.value
                 : document.getElementById('lmstudioApiKey')?.value),
         base_url: document.getElementById('aiUrl')?.value || '',
-        model: document.getElementById('aiModel')?.value || '',
+        model: (document.getElementById('aiType')?.value === 'gemini' 
+                ? document.getElementById('aiModelSelect')?.value 
+                : document.getElementById('aiModel')?.value) || document.getElementById('aiModel')?.value || '',
         max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
         custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
     };

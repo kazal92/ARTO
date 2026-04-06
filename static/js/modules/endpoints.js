@@ -149,6 +149,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
     const sliced = endpointsToRender.slice(startIndex, startIndex + pageSize);
 
     sliced.forEach((ep, sIdx) => {
+        if (!ep.url || ep.url === '-') return; // URL이 없으면 렌더링 스킵
         const globalIdx = startIndex + sIdx;
         const tr = document.createElement('tr');
         const method = ep.method || 'GET';
