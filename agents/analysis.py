@@ -321,14 +321,14 @@ async def run_analysis_agent(
 
             batch_str = json.dumps(batch, ensure_ascii=False)
             custom_prompt = (ai_config or {}).get('custom_prompt', '').strip()
-            instructions = custom_prompt if custom_prompt else \
+            base_instructions = custom_prompt if custom_prompt else \
                 """당신은 전문적인 보안 침투 테스트 전문가이자 취약점 분석가입니다.
 다음 HTTP 요청/응답 컨텍스트를 분석하여 잠재적인 보안 취약점을 식별하십시오.
 
 ### 중요 지침:
 - **단순히 확실한 취약점(Info-Leak 등) 뿐만 아니라, 추가 정밀 침투가 필요한 "잠재적 공격 벡터(Attack Vector)"도 포함하여 과감히 도출하십시오.**
-- **모든 설명, 제목, 추천 사항 등 모든 텍스트 필드의 내용은 반드시 한국어로 작성하십시오.**
-- 출력은 반드시 유효한 JSON 객체 리스트 형식이어야 합니다."""
+- **모든 설명, 제목, 추천 사항 등 모든 텍스트 필드의 내용은 반드시 한국어로 작성하십시오.**"""
+            instructions = base_instructions + "\n- 출력은 반드시 유효한 JSON 객체 리스트 형식이어야 합니다."
             prompt = instructions + f"""
 
 ### 필수 JSON 구조 (모든 텍스트 값은 한국어):
@@ -342,6 +342,8 @@ async def run_analysis_agent(
     "steps": "1단계: ...\\n2단계: ... (마크다운 형식의 재현 단계)",
     "recommendation": "조치 방법 및 추가 진단 권고 (마크다운 형식)",
     "cwe": "CWE-ID (예: CWE-79)",
+    "ttp": "MITRE ATT&CK TTP ID (예: T1190, T1059.001)",
+    "owasp": "OWASP TOP10 2025 분류 (예: A01:2025, A03:2025)",
     "confidence": 0-100,
     "verified": false
   }}
@@ -457,114 +459,3 @@ async def run_analysis_agent(
         else:
             yield stream_log(session_dir, f"보안 분석 완료: 총 {total_count}개의 잠재적 취약점이 식별되었습니다.", "AI", 100)
         yield stream_custom(session_dir, {"type": "scan_complete", "data": all_findings})
-
-
-async def analyze_selected_packets(packets: List[Dict], ai_config: Dict = None, session_dir: str = "") -> List[Dict]:
-    """선택된 ZAP 히스토리 패킷들을 AI로 분석합니다."""
-    local_client = _get_default_client()
-    local_model = LM_STUDIO_MODEL
-
-    if ai_config:
-        _c, _m, _msg = _init_ai_client(ai_config)
-        if _c:
-            local_client, local_model = _c, _m
-
-    processed_requests = []
-    for ep in packets:
-        req_h = ep.get('requestHeader', '')
-        req_b = ep.get('requestBody', '')
-        res_h = ep.get('responseHeader', '')
-        res_b = ep.get('responseBody', '')
-
-        req_raw = req_h + req_b
-        res_raw = res_h + res_b
-        url = ep.get('url', '')
-
-        method = "GET"
-        if req_h:
-            first_line = req_h.split('\n')[0]
-            try:
-                method = first_line.split(' ')[0].upper()
-            except (IndexError, AttributeError):
-                method = ep.get("requestMethod", "GET").upper()
-
-        if not req_raw:
-            continue
-
-        minimized_req = minimize_request_raw(req_raw) if ENABLE_REQUEST_COMPRESSION else req_raw
-
-        req_parts = req_raw.split('\n\n', 1)
-        r_body = req_parts[1] if len(req_parts) > 1 else ""
-        context = extract_relevant_snippet(url, r_body, res_raw)
-
-        processed_requests.append({
-            "url": url,
-            "method": method,
-            "raw_request": minimized_req,
-            "response_context": context['response_context']
-        })
-
-    if not processed_requests:
-        return []
-
-    pkt_count = len(processed_requests)
-    prompt = f"""당신은 전문적인 보안 침투 테스트 전문가이자 취약점 분석가입니다.
-아래 {pkt_count}개의 HTTP 요청/응답 컨텍스트를 분석합니다.
-
-### 핵심 분석 규칙:
-- **각 엔드포인트(URL)를 반드시 독립적으로 분석**하십시오.
-- 취약점이 실제로 존재하거나 의심되는 경우에만 보고하십시오. 근거 없는 항목은 생략하십시오.
-- **생각 및 추론 과정(Reasoning/Thinking)을 절대 출력하지 마십시오.** 오직 JSON만 반환하십시오.
-- **모든 텍스트 필드는 반드시 한국어**로 작성하십시오.
-- 출력은 반드시 유효한 JSON 배열 형식이어야 합니다.
-
-### 필수 JSON 구조 (모든 텍스트 값은 한국어):
-[
-  {{
-    "title": "취약점 명칭",
-    "severity": "CRITICAL|HIGH|MEDIUM|LOW",
-    "target": "URL 또는 파라미터 명칭",
-    "description": "취약점에 대한 기술적 요약",
-    "evidence": "취약점을 확인한 페이지 또는 응답의 특정 부분",
-    "steps": "1단계: ...\\n2단계: ... (마크다운 형식의 재현 단계)",
-    "recommendation": "조치 방법 (마크다운 형식의 보안 권고 사항)",
-    "cwe": "CWE-ID (예: CWE-79)",
-    "confidence": 0-100,
-    "verified": false
-  }}
-]
-
-### 분석 대상 엔드포인트 목록 ({pkt_count}개 — 각각 독립 분석 필수):
-{json.dumps(processed_requests, ensure_ascii=False)}
-"""
-
-    try:
-        response = await local_client.chat.completions.create(
-            model=local_model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2
-        )
-        full_content = response.choices[0].message.content
-        findings = await asyncio.to_thread(extract_vulnerabilities, full_content)
-
-        for f in findings:
-            if isinstance(f, dict):
-                f["source"] = "AI_Custom_Analysis"
-                f["verified"] = False
-
-        if session_dir:
-            try:
-                existing_findings_path = os.path.join(session_dir, "ai_findings.json")
-                with open(existing_findings_path, "w", encoding="utf-8") as f:
-                    json.dump(findings, f, ensure_ascii=False, indent=2)
-
-                input_path = os.path.join(session_dir, "ai_input_full_requests.json")
-                with open(input_path, "w", encoding="utf-8") as f:
-                    json.dump(packets, f, ensure_ascii=False, indent=2)
-            except Exception:
-                pass
-
-        return findings
-    except Exception as e:
-        print(f"AI 분석 오류: {e}")
-        return []

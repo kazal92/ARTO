@@ -135,7 +135,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
     }
 
     if (totalCount === 0) {
-        el.innerHTML = '<tr><td colspan="10" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
+        el.innerHTML = '<tr><td colspan="8" class="empty-state">발견된 엔드포인트가 없습니다.</td></tr>';
         const pag = document.getElementById('endpointPagination');
         if (pag) pag.innerHTML = '';
         return;
@@ -159,9 +159,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
 
         const aiKey = `${method}:${ep.url}`;
         const isAiTarget = aiTargetUrls.has(aiKey);
-        const aiBadge = isAiTarget
-            ? '<span class="badge-ai" style="padding:2px 7px;border-radius:4px;font-size:0.68rem;"><i class="fa-solid fa-brain me-1"></i>Yes</span>'
-            : '<span class="text-muted" style="font-size:0.75rem;">—</span>';
+        const aiBadge = `<input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isAiTarget ? 'checked' : ''} onchange="handleEndpointCheck(this)">`;
 
         const status = (ep.status !== undefined && ep.status !== null) ? String(ep.status) : '-';
         let statusBadge = '';
@@ -187,21 +185,16 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
         const srcBadges = srcs.map(s =>
             `<span class="badge-source badge-source-${s}">${s.toUpperCase()}</span>`
         ).join(' ');
+        tr.dataset.epIdx = globalIdx;
         tr.innerHTML = `
-            <td class="text-center"><input type="checkbox" class="endpoint-check" data-method="${method}" data-url="${(ep.url || '').replace(/"/g, '&quot;')}" ${isAiTarget ? 'checked' : ''} onchange="handleEndpointCheck(this)"></td>
             <td class="text-center text-muted" style="font-size:0.72rem;">${ep.originalIndex || (globalIdx + 1)}</td>
             <td class="text-center">${aiBadge}</td>
             <td class="text-center"><span class="method-tag ${methodClass}">${methodUpper}</span></td>
-            <td class="font-mono" style="word-break:break-all;color:var(--text-main);font-size:0.82rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ep.url}">${ep.url}</td>
+            <td class="font-mono ep-url-cell" onclick="toggleEndpointDetail(${globalIdx})" style="cursor:pointer;word-break:break-all;color:var(--info);font-size:0.82rem;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ep.url}">${ep.url}</td>
             <td class="text-center">${statusBadge}</td>
             <td class="text-center">${srcBadges}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${ep.time || '-'}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${resSize}</td>
-            <td class="text-center">
-                <button class="ep-detail-btn" onclick="openEndpointModalByIdx(${globalIdx})" title="상세보기">
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </button>
-            </td>
         `;
         el.appendChild(tr);
     });
@@ -242,7 +235,6 @@ function handleEndpointCheck(checkbox) {
     if (checkbox.checked) aiTargetUrls.add(key);
     else aiTargetUrls.delete(key);
     applyFilters();
-    saveAiTargets();
 }
 
 function toggleAllEndpoints(masterCheckbox) {
@@ -253,7 +245,6 @@ function toggleAllEndpoints(masterCheckbox) {
         else aiTargetUrls.delete(key);
     });
     applyFilters();
-    saveAiTargets();
 }
 
 // ── AI 타겟 저장 ─────────────────────────────────────────
@@ -303,54 +294,65 @@ function runAiAnalysis() {
     if (typeof startAiScan === 'function') startAiScan(sessionId);
 }
 
-// ── 엔드포인트 상세 모달 ───────────────────────────────────
+// ── 엔드포인트 인라인 상세 ───────────────────────────────────
 
-function openEndpointModalByIdx(idx) {
+function toggleEndpointDetail(idx) {
+    const tbody = document.getElementById('endpointsTableBody');
+    const parentTr = tbody.querySelector(`tr[data-ep-idx="${idx}"]`);
+    if (!parentTr) return;
+
+    const existingDetail = tbody.querySelector(`tr[data-detail-for="${idx}"]`);
+    if (existingDetail) {
+        existingDetail.remove();
+        parentTr.classList.remove('ep-expanded');
+        return;
+    }
+
     const ep = endpointsToRender[idx];
     if (!ep) return;
 
-    const methodUpper = (ep.method || 'GET').toUpperCase();
-    const methodClasses = { GET:'method-get', POST:'method-post', PUT:'method-put', DELETE:'method-delete', PATCH:'method-patch' };
-    const methodClass = methodClasses[methodUpper] || 'method-other';
-
-    const escapeHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const escapeHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const reqRaw = escapeHtml(ep.request_raw || '(No Request Data)');
     const resRaw = escapeHtml(ep.response_raw || '(No Response Data)');
-    const reqSize = ep.requestSize ? `${ep.requestSize} bytes` : `${reqRaw.length} bytes`;
-    const resSize = ep.responseSize ? `${ep.responseSize} bytes` : `${resRaw.length} bytes`;
+    const reqSize = ep.requestSize ? `${ep.requestSize} bytes` : '-';
+    const resSize = ep.responseSize ? `${ep.responseSize} bytes` : '-';
 
-    const html = `
-        <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-            <span class="method-tag ${methodClass}">${methodUpper}</span>
-            <code class="text-info" style="font-size:0.85rem;word-break:break-all;">${ep.url || '-'}</code>
-        </div>
-        <div class="d-flex gap-2 mb-3 flex-wrap">
-            <span class="badge bg-secondary">📅 ${ep.time || '-'}</span>
-            <span class="badge bg-dark border">📤 Request: ${reqSize}</span>
-            <span class="badge bg-dark border">📥 Response: ${resSize}</span>
-        </div>
-        <ul class="nav nav-tabs mb-2" id="epDetailTabs">
-            <li class="nav-item">
-                <button class="nav-link active" onclick="epDetailTab('req')">Request</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="epDetailTab('res')">Response</button>
-            </li>
-        </ul>
-        <div id="epReqPane" style="display:block;">
-            <pre style="font-size:0.75rem;color:var(--info);white-space:pre-wrap;max-height:350px;overflow:auto;background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;">${reqRaw}</pre>
-        </div>
-        <div id="epResPane" style="display:none;">
-            <pre style="font-size:0.75rem;color:var(--text-main);white-space:pre-wrap;max-height:350px;overflow:auto;background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;">${resRaw}</pre>
-        </div>
+    const detailTr = document.createElement('tr');
+    detailTr.dataset.detailFor = idx;
+    detailTr.innerHTML = `
+        <td colspan="9" style="padding:0;border-top:none;">
+            <div class="ep-detail-panel">
+                <div class="d-flex gap-1 mb-2">
+                    <button class="ep-tab-btn active" onclick="epInlineTab(${idx},'req',this)">Request</button>
+                    <button class="ep-tab-btn" onclick="epInlineTab(${idx},'res',this)">Response</button>
+                </div>
+                <div id="ep-req-${idx}" style="position:relative;">
+                    <button class="ep-copy-btn" onclick="epCopy(this,'ep-copy-req-${idx}')" title="복사">Copy</button>
+                    <pre class="ep-detail-pre ep-detail-pre--req" id="ep-copy-req-${idx}">${reqRaw}</pre>
+                </div>
+                <div id="ep-res-${idx}" style="display:none;position:relative;">
+                    <button class="ep-copy-btn" onclick="epCopy(this,'ep-copy-res-${idx}')" title="복사">Copy</button>
+                    <pre class="ep-detail-pre" id="ep-copy-res-${idx}">${resRaw}</pre>
+                </div>
+            </div>
+        </td>
     `;
-    if (typeof openDrawer === 'function') openDrawer(`Endpoint Detail — ${ep.url}`, html);
+
+    parentTr.classList.add('ep-expanded');
+    parentTr.after(detailTr);
 }
 
-window.epDetailTab = function(tab) {
-    document.getElementById('epReqPane').style.display = tab === 'req' ? 'block' : 'none';
-    document.getElementById('epResPane').style.display = tab === 'res' ? 'block' : 'none';
-    document.querySelectorAll('#epDetailTabs .nav-link').forEach(el => el.classList.remove('active'));
-    const activeTab = document.querySelector(`#epDetailTabs .nav-link[onclick="epDetailTab('${tab}')"]`);
-    if (activeTab) activeTab.classList.add('active');
+window.epCopy = function(btn, preId) {
+    const text = document.getElementById(preId)?.innerText || '';
+    navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+};
+
+window.epInlineTab = function(idx, tab, btn) {
+    document.getElementById(`ep-req-${idx}`).style.display = tab === 'req' ? 'block' : 'none';
+    document.getElementById(`ep-res-${idx}`).style.display = tab === 'res' ? 'block' : 'none';
+    btn.closest('.d-flex').querySelectorAll('.ep-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 };

@@ -175,7 +175,14 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
         for k, v in headers.items():
             cmd_base += f' -H "{k}: {v}"'
 
-    yield {"type": "command", "cmd": f"$ {cmd_base}"}
+    try:
+        with open(wordlist, "r", encoding="utf-8", errors="ignore") as _wf:
+            wl_count = sum(1 for ln in _wf if ln.strip())
+    except Exception:
+        wl_count = 0
+
+    cmd_display = f"$ {cmd_base}" + (f"  [{os.path.basename(wordlist)}: {wl_count:,}줄]" if wl_count else "")
+    yield {"type": "command", "cmd": cmd_display}
 
     results = []
     found_count = 0

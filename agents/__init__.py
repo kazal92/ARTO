@@ -1,7 +1,7 @@
 # agents/__init__.py — 하위 호환성 re-export shim
 # 기존 `from agents import ...` 코드가 모두 동작합니다.
 from agents.recon import run_recon_agent
-from agents.analysis import run_analysis_agent, analyze_selected_packets, _init_ai_client
+from agents.analysis import run_analysis_agent, _init_ai_client
 from core.session import (
     ROOT_SCAN_DIR,
     ROOT_PRECHECK_DIR,

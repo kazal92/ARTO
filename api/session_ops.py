@@ -3,7 +3,7 @@ import json
 import asyncio
 
 from fastapi import APIRouter, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from agents.analysis import run_analysis_agent
 from core.session import find_session_dir, save_tool_result
@@ -81,6 +81,7 @@ async def auto_target(session_id: str):
         r.pop("url", None)
 
     save_tool_result(session_dir, "ai_input_full_requests", filtered, indent=None)
+    save_tool_result(session_dir, "ai_targets", target_keys)
 
     return {"status": "ok", "targets": target_keys}
 
@@ -124,23 +125,28 @@ async def save_ai_targets(session_id: str, body: dict):
         })
 
     save_tool_result(session_dir, "ai_input_full_requests", result, indent=None)
+    save_tool_result(session_dir, "ai_targets", list(selected_keys))
     return {"status": "ok"}
+
+
+@router.get("/api/session/{session_id}/ai_targets")
+async def get_ai_targets(session_id: str):
+    session_dir = find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "targets": []}
+    path = os.path.join(session_dir, "ai_targets.json")
+    if not os.path.exists(path):
+        return {"status": "ok", "targets": []}
+    with open(path, "r", encoding="utf-8") as f:
+        return {"status": "ok", "targets": json.load(f)}
 
 
 @router.post("/api/session/{session_id}/run_ai")
 async def run_ai(session_id: str, request: Request):
-    """ai_input_full_requests.json 기반으로 AI 분석 실행 (SSE)"""
+    """엔드포인트 데이터 기반으로 AI 분석 실행 (SSE)"""
     session_dir = find_session_dir(session_id)
     if not session_dir:
-        return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
-
-    recon_map_path = os.path.join(session_dir, "recon_map.json")
-    ai_input_path = os.path.join(session_dir, "ai_input_full_requests.json")
-
-    if not os.path.exists(recon_map_path):
-        return {"status": "error", "message": "정찰 데이터가 없습니다."}
-    if not os.path.exists(ai_input_path):
-        return {"status": "error", "message": "AI 분석 대상이 없습니다. 먼저 타겟을 지정하세요."}
+        return JSONResponse(status_code=400, content={"status": "error", "message": "유효하지 않은 세션 ID입니다."})
 
     body = {}
     try:
@@ -148,11 +154,32 @@ async def run_ai(session_id: str, request: Request):
     except Exception:
         pass
     ai_config = body.get("ai_config", {})
+    provided_endpoints = body.get("endpoints", [])
 
-    with open(recon_map_path, "r", encoding="utf-8") as f:
-        recon_data = json.load(f)
+    recon_map_path = os.path.join(session_dir, "recon_map.json")
+
+    if provided_endpoints:
+        # 프론트에서 직접 전송한 데이터 사용
+        recon_data = {"target": "", "endpoints": provided_endpoints}
+        if os.path.exists(recon_map_path):
+            with open(recon_map_path, "r", encoding="utf-8") as f:
+                recon_data["target"] = json.load(f).get("target", "")
+    elif os.path.exists(recon_map_path):
+        with open(recon_map_path, "r", encoding="utf-8") as f:
+            recon_data = json.load(f)
+    else:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "분석할 데이터가 없습니다. 타겟을 지정하세요."})
+
+    if not recon_data.get("endpoints"):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "AI 분석 대상이 없습니다. 먼저 타겟을 지정하세요."})
 
     log_file = os.path.join(session_dir, "scan_log.jsonl")
+
+    # 기존 로그의 끝 라인 위치를 미리 기록 (이전 스캔 로그를 건너뜀)
+    initial_lines = 0
+    if os.path.exists(log_file):
+        with open(log_file, "r", encoding="utf-8") as f:
+            initial_lines = sum(1 for _ in f)
 
     async def event_generator():
         await mark_active(session_dir)
@@ -175,7 +202,7 @@ async def run_ai(session_id: str, request: Request):
 
         asyncio.create_task(run_task())
 
-        sent_lines = 0
+        sent_lines = initial_lines
         timeout_count = 0
         while timeout_count < 7200:
             if os.path.exists(log_file):

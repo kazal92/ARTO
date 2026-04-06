@@ -355,15 +355,29 @@ async function startAiScan(sessionId) {
         custom_prompt: document.getElementById('aiPromptCustom')?.value?.trim() || ''
     };
 
+    const selectedEndpoints = (typeof allEndpoints !== 'undefined' ? allEndpoints : [])
+        .filter(ep => (typeof aiTargetUrls !== 'undefined') && aiTargetUrls.has(`${ep.method || 'GET'}:${ep.url}`))
+        .map(ep => ({
+            url: ep.url,
+            method: ep.method || 'GET',
+            request_raw: ep.request_raw || '',
+            response_raw: ep.response_raw || ''
+        }));
+
     try {
         const res = await fetch(`${API_BASE}/api/session/${sessionId}/run_ai`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ai_config: aiConfig })
+            body: JSON.stringify({ ai_config: aiConfig, endpoints: selectedEndpoints })
         });
 
         if (!res.ok) {
-            appendLog('AI 분석 API 연결에 실패했습니다.', 'System');
+            try {
+                const err = await res.json();
+                appendLog(err.message || 'AI 분석 API 연결에 실패했습니다.', 'System');
+            } catch {
+                appendLog('AI 분석 API 연결에 실패했습니다.', 'System');
+            }
             return;
         }
 

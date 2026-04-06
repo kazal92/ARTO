@@ -46,11 +46,11 @@
                 <div id="sub-scan" class="sub-menu-list" style="display: none;">
                     <div class="menu-item" data-sec="section-overview" onclick="switchSection('section-overview')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔 대상</span>
+                        <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔대상</span>
                     </div>
                     <div class="menu-item" data-sec="section-endpoints" onclick="switchSection('section-endpoints')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트</span>
+                        <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트 AI 분석</span>
                     </div>
                     <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-vulns')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
@@ -497,7 +497,7 @@
                         </h6>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
-                                <i class="fa-solid fa-broom me-1"></i> ZAP history 초기화
+                                <i class="fa-solid fa-broom me-1"></i> 히스토리 초기화
                             </button>
                             <button class="btn btn-sm btn-success" id="startBtn" onclick="startScan()">
                                 <i class="fa-solid fa-play me-1"></i> 스캔 시작
@@ -517,80 +517,11 @@
                         </div>
                     </div>
                     <div id="scanConfigBody">
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
-                                <select id="aiType" class="form-select"
-                                    style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
-                                    onchange="toggleAiSettings(true)">
-                                    <option value="gemini">Google Gemini AI</option>
-                                    <option value="lmstudio">LM Studio (Local)</option>
-                                    <option value="vertex">Google Vertex AI (미완성)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label text-muted small fw-bold mb-0">Model Name</label>
-                                    <button id="btnFetchModels" class="btn btn-xs btn-link text-primary p-0"
-                                        style="font-size: 0.68rem; border:none; text-decoration:none;"
-                                        onclick="fetchLmStudioModels()">
-                                        <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
-                                    </button>
-                                </div>
-                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b">
-                                <select id="aiModelLmSelect" class="form-select mt-1"
-                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
-                                    onchange="document.getElementById('aiModel').value = this.value">
-                                </select>
-                                <select id="aiModelSelect" class="form-select"
-                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
-                                    onchange="document.getElementById('aiModel').value = this.value">
-                                    <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
-                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-6" id="aiUrlContainer">
-                                <label class="form-label text-muted small fw-bold">API EndPoint URL</label>
-                                <input type="text" id="aiUrl" class="glass-input w-100" placeholder="http://아이피/v1"
-                                    oninput="fetchLmStudioModels(true)">
-                            </div>
-                            <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">Gemini API Key</label>
-                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="fetchGeminiModels()">
-                            </div>
-                            <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
-                                <input type="text" id="lmstudioApiKey" class="glass-input w-100"
-                                    placeholder="API Key 입력 (필요시)">
-                            </div>
-                            <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
-                                <input type="password" id="vertexApiKey" class="glass-input w-100"
-                                    placeholder="ya29... (Bearer Token)">
-                            </div>
-                        </div>
                         <label class="form-label text-muted small fw-bold">사용자 정의 요청 헤더 (Cookies, Setup)</label>
                         <textarea id="customHeaders" class="glass-input w-100 mb-2" rows="2"
                             style="resize: vertical; min-height: 60px;"
                             placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."
                             oninput="localStorage.setItem('customHeaders', this.value)"></textarea>
-
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
-                            <button class="btn btn-xs btn-link text-secondary p-0"
-                                style="font-size: 0.68rem; border:none; text-decoration:none;"
-                                onclick="document.getElementById('aiPromptCustom').value = ''; localStorage.removeItem('aiPromptCustom');">
-                                <i class="fa-solid fa-rotate-left me-1"></i>기본값으로 초기화
-                            </button>
-                        </div>
-                        <textarea id="aiPromptCustom" class="glass-input w-100 mb-2" rows="4"
-                            style="resize: vertical; min-height: 80px; font-size: 0.8rem; font-family: monospace;"
-                            placeholder="비워두면 기본 프롬프트 사용. {batch_str} 위치에 분석 데이터가 삽입됩니다."></textarea>
 
                         <div class="d-flex gap-2 mb-2">
                             <div style="flex:0 0 22%;">
@@ -604,11 +535,6 @@
                                 <input type="text" id="ffufOptions" class="glass-input w-100"
                                     value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
                                     placeholder="-u http://target.com/FUZZ -t 50 -mc 200,301,302,401,403 -ac -ic">
-                            </div>
-                            <div style="flex:0 0 140px;">
-                                <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
-                                <input type="number" id="maxEndpointsPerBatch" class="glass-input w-100" min="0" value="0"
-                                    placeholder="0 = 제한없음" style="text-align:center;">
                             </div>
                         </div>
 
@@ -761,9 +687,95 @@
                         <button id="btnAutoTarget" class="btn btn-sm btn-outline-warning" onclick="autoTarget()">
                             <i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정
                         </button>
+                        <button id="btnSaveTargets" class="btn btn-sm btn-outline-success" onclick="saveAiTargets()">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>타겟 저장
+                        </button>
                         <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
                             <i class="fa-solid fa-brain me-1"></i>AI 분석 시작
                         </button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#aiSettingsCollapse" aria-expanded="true">
+                            <i class="fa-solid fa-sliders me-1"></i>AI 설정
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ⚙️ AI / ffuf 설정 패널 -->
+                <div class="collapse show mb-3" id="aiSettingsCollapse">
+                    <div class="glass-card" style="border-top: 3px solid var(--primary);">
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
+                                <select id="aiType" class="form-select"
+                                    style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="toggleAiSettings(true)">
+                                    <option value="gemini">Google Gemini AI</option>
+                                    <option value="lmstudio">LM Studio (Local)</option>
+                                    <option value="vertex">Google Vertex AI (미완성)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label text-muted small fw-bold mb-0">Model Name</label>
+                                    <button id="btnFetchModels" class="btn btn-xs btn-link text-primary p-0"
+                                        style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                        onclick="fetchLmStudioModels()">
+                                        <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
+                                    </button>
+                                </div>
+                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b">
+                                <select id="aiModelLmSelect" class="form-select mt-1"
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                </select>
+                                <select id="aiModelSelect" class="form-select"
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                    <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
+                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6" id="aiUrlContainer">
+                                <label class="form-label text-muted small fw-bold">API EndPoint URL</label>
+                                <input type="text" id="aiUrl" class="glass-input w-100" placeholder="http://아이피/v1"
+                                    oninput="fetchLmStudioModels(true)">
+                            </div>
+                            <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Gemini API Key</label>
+                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="fetchGeminiModels()">
+                            </div>
+                            <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
+                                <input type="text" id="lmstudioApiKey" class="glass-input w-100"
+                                    placeholder="API Key 입력 (필요시)">
+                            </div>
+                            <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
+                                <input type="password" id="vertexApiKey" class="glass-input w-100"
+                                    placeholder="ya29... (Bearer Token)">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
+                            <button class="btn btn-xs btn-link text-secondary p-0"
+                                style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                onclick="document.getElementById('aiPromptCustom').value = ''; localStorage.removeItem('aiPromptCustom');">
+                                <i class="fa-solid fa-rotate-left me-1"></i>기본값으로 초기화
+                            </button>
+                        </div>
+                        <textarea id="aiPromptCustom" class="glass-input w-100 mb-2" rows="4"
+                            style="resize: vertical; min-height: 80px; font-size: 0.8rem; font-family: monospace;"
+                            placeholder="비워두면 기본 프롬프트 사용. {batch_str} 위치에 분석 데이터가 삽입됩니다."></textarea>
+
+                        <div style="flex:0 0 140px;">
+                            <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
+                            <input type="number" id="maxEndpointsPerBatch" class="glass-input w-100" min="0" value="0"
+                                placeholder="0 = 제한없음" style="text-align:center;">
+                        </div>
                     </div>
                 </div>
 
@@ -798,14 +810,10 @@
                         <table class="ep-table">
                             <thead>
                                 <tr>
-                                    <th width="40" class="text-center">
-                                        <input type="checkbox" id="checkAllEndpoints"
-                                            onchange="toggleAllEndpoints(this)">
-                                    </th>
                                     <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No. <i
                                             class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">AI <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
+                                    <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">
+                                        <input type="checkbox" id="checkAllEndpoints" onclick="event.stopPropagation()" onchange="toggleAllEndpoints(this)" style="margin-right:4px;">AI <i class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">
                                         Method <i class="fa-solid fa-sort ms-1"></i></th>
                                     <th class="sortable" onclick="sortEndpoints('url')">URL Path <i
@@ -819,14 +827,12 @@
                                             class="fa-solid fa-sort ms-1"></i></th>
                                     <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i
                                             class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="80" class="text-center">Action</th>
                                 </tr>
                                 <tr class="filter-row">
                                     <th></th>
-                                    <th></th>
                                     <th>
-                                        <select id="filterAiTarget" class="form-select" onchange="applyFilters()"
-                                            style="background-color: var(--bg-darker); border-color: var(--border-color); color: var(--text-main); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                        <select id="filterAiTarget" onchange="applyFilters()"
+                                            style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
                                             <option value="">All</option>
                                             <option value="yes">Targeted</option>
                                             <option value="no">Skipped</option>
@@ -858,12 +864,11 @@
                                     </th>
                                     <th></th>
                                     <th></th>
-                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody id="endpointsTableBody">
                                 <tr>
-                                    <td colspan="10" class="empty-state">데이터를 불러오는 중입니다...</td>
+                                    <td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -930,17 +935,19 @@
                                         <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)"
                                             style="cursor:pointer;">
                                     </th>
-                                    <th width="5%">No.</th>
-                                    <th width="10%">위험도</th>
-                                    <th width="8%">점수</th>
-                                    <th width="27%">취약점 명칭</th>
-                                    <th width="39%">대상 파라미터 / 주입 상세</th>
+                                    <th width="4%">No.</th>
+                                    <th width="8%">위험도</th>
+                                    <th width="6%">점수</th>
+                                    <th width="22%">취약점 명칭</th>
+                                    <th width="25%">대상 파라미터 / 주입 상세</th>
+                                    <th width="10%">TTP</th>
+                                    <th width="12%">OWASP TOP10</th>
                                     <th width="7%" class="text-center">관리</th>
                                 </tr>
                             </thead>
                             <tbody id="vulnsTableBody">
                                 <tr>
-                                    <td colspan="8" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
+                                    <td colspan="9" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
                                 </tr>
                             </tbody>
                         </table>

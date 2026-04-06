@@ -106,6 +106,7 @@ function appendLog(msg, source = "System") {
 
     const safeMsg = (msg || "").toString();
     const upperMsg = safeMsg.toUpperCase();
+    const isBoldMsg = safeMsg.includes('ZAP Spider 탐색 시작') || safeMsg.includes('FFuF 디렉토리/파일 퍼징');
     const isFfufDiscovery = safeMsg.startsWith('[FFUF]');
     const isZapDiscovery = safeMsg.startsWith('[ZAP]') && /^https?:\/\//.test(safeMsg.slice(5).trim());
     const isErrorMsg = (upperMsg.includes("FAIL") || safeMsg.includes("실패") || safeMsg.includes("치명적"))
@@ -136,7 +137,7 @@ function appendLog(msg, source = "System") {
     const badgeStr = `<span class="log-badge ${badgeClass}">${badgeText}</span>`;
     const msgContent = (isFfufDiscovery || isZapDiscovery)
         ? renderedMsg
-        : `${prefix}<span style="color:${msgColor};">${msg}</span>`;
+        : `${prefix}<span style="color:${msgColor};${isBoldMsg ? 'font-weight:700;' : ''}">${msg}</span>`;
     div.innerHTML = `${timeStr}${badgeStr}<span class="log-msg" style="word-break:break-all;">${msgContent}</span>`;
 
     win.appendChild(div);

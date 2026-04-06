@@ -14,7 +14,7 @@ function renderCards(cardsArray) {
     let crit = 0, high = 0, medlow = 0;
 
     if (!Array.isArray(cardsArray) || cardsArray.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">현재 시그니처와 일치하는 위협이 탐지되지 않았습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="empty-state">현재 시그니처와 일치하는 위협이 탐지되지 않았습니다.</td></tr>';
         ['statCritical', 'statHigh', 'statMedLow'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = 0;
@@ -42,6 +42,9 @@ function renderCards(cardsArray) {
         if (confScore >= 90) confClass = "bg-danger";
         else if (confScore >= 70) confClass = "bg-warning text-dark";
 
+        const safeTtp = (card.ttp || '—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeOwasp = (card.owasp || '—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
         tr.innerHTML = `
             <td class="text-center" onclick="event.stopPropagation()">
                 <input type="checkbox" class="vuln-checkbox" style="cursor:pointer;" value="${index}">
@@ -51,6 +54,8 @@ function renderCards(cardsArray) {
             <td><span class="pill ${confClass}" style="min-width:35px;text-align:center;">${confScore}</span></td>
             <td class="fw-bold" style="color:var(--text-main);">${safeTitle}${verifiedBadge}</td>
             <td class="text-muted font-mono" style="font-size:0.8rem;word-break:break-all;">${safeTarget}</td>
+            <td style="font-size:0.75rem;"><span class="badge bg-secondary font-mono">${safeTtp}</span></td>
+            <td style="font-size:0.75rem;"><span class="badge bg-dark border font-mono">${safeOwasp}</span></td>
             <td class="text-center">
                 <button class="btn btn-xs btn-outline-danger" style="padding:2px 6px;font-size:0.75rem;" onclick="deleteCard(${index});event.stopPropagation();">
                     <i class="fa-solid fa-trash"></i>

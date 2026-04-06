@@ -10,3 +10,6 @@ ZAP_BASE_URL: str = os.getenv("ZAP_BASE_URL", "http://localhost:8080")
 # ARTO 서버 바인딩
 ARTO_HOST: str = os.getenv("ARTO_HOST", "0.0.0.0")
 ARTO_PORT: int = int(os.getenv("ARTO_PORT", "8001"))
+
+# AI 요청 압축 (헤더/바디 최소화)
+ENABLE_REQUEST_COMPRESSION: bool = os.getenv("ENABLE_REQUEST_COMPRESSION", "true").lower() == "true"

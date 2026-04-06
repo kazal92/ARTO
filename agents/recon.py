@@ -55,7 +55,7 @@ async def run_recon_agent(
     if not enable_zap:
         yield stream_log(session_dir, 'ZAP Spider가 비활성화되어 건너뜁니다.', 'Recon', 10)
     else:
-        yield stream_log(session_dir, 'OWASP ZAP Spider 탐색 시작...', 'Recon', 10)
+        yield stream_log(session_dir, 'ZAP Spider 탐색 시작...', 'Recon', 10)
         async for update in run_zap_spider(target_url, session_dir, headers):
             if is_cancelled(session_dir):
                 break

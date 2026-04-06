@@ -93,7 +93,18 @@ async function loadSession(sessionId) {
         }
     } catch (e) { console.warn("Recon map load failed", e); }
 
-    // 3. AI Findings
+    // 3. AI Targets 복원
+    try {
+        const resTargets = await fetch(`${API_BASE}/api/session/${sessionId}/ai_targets`);
+        const targetsJson = await resTargets.json();
+        if (targetsJson.status === 'ok' && targetsJson.targets?.length) {
+            aiTargetUrls.clear();
+            targetsJson.targets.forEach(t => aiTargetUrls.add(t));
+            applyFilters();
+        }
+    } catch (e) { console.warn("AI targets load failed", e); }
+
+    // 4. AI Findings
     try {
         const resCards = await fetch(`${API_BASE}/api/history/${sessionId}/json/ai_findings`);
         const cardsJson = await resCards.json();
