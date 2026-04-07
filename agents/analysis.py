@@ -120,7 +120,7 @@ async def _dedup_findings_with_ai(client, model, findings: list) -> list:
 - 표현만 다르고 실질적으로 같은 취약점 → 하나로 합치기
 - 명확히 다른 취약점은 그대로 유지
 
-원본 JSON 구조(title, severity, target, description, evidence, steps, recommendation, cwe, confidence, verified, source)를 그대로 유지하여 정리된 배열만 반환하십시오.
+원본 JSON 구조(title, severity, target, scanned_from, description, evidence, steps, recommendation, cwe, confidence, verified, source)를 그대로 유지하여 정리된 배열만 반환하십시오.
 
 ### 정리 대상 목록:
 {findings_str}
@@ -271,6 +271,13 @@ async def run_analysis_agent(
         req.pop('source', None)
         req.pop('url', None)
 
+    # scanned_from 매칭용 lookup (raw_request 첫 줄 → {raw_request, response_context})
+    scanned_from_map = {
+        req['raw_request'].split('\n')[0].strip(): req
+        for req in all_requests
+        if req.get('raw_request')
+    }
+
     save_tool_result(session_dir, "ai_input_full_requests", all_requests, indent=None)
 
     batches = []
@@ -337,6 +344,7 @@ async def run_analysis_agent(
     "title": "취약점 명칭 (또는 점검 권장 항목)",
     "severity": "CRITICAL|HIGH|MEDIUM|LOW",
     "target": "URL 또는 파라미터 명칭",
+    "scanned_from": "취약점을 발견한 raw_request의 첫 줄 (예: GET https://example.com/path HTTP/1.1)",
     "description": "취약점 또는 예상 공격 접점에 대한 기술적 요약 및 가설",
     "evidence": "취약점을 의심하게 만든 페이로드 또는 응답의 특정 코드 특징",
     "steps": "1단계: ...\\n2단계: ... (마크다운 형식의 재현 단계)",
@@ -401,6 +409,14 @@ async def run_analysis_agent(
 
                     f["source"] = "AI_Agent_A"
                     f["verified"] = False
+
+                    # scanned_from 매칭으로 원본 요청/응답 첨부
+                    scanned_from_key = (f.get("scanned_from") or "").strip()
+                    matched_req = scanned_from_map.get(scanned_from_key)
+                    if matched_req:
+                        f["_raw_request"] = matched_req.get("raw_request", "")
+                        f["_response_context"] = matched_req.get("response_context", "")
+
                     all_findings.append(f)
                     newly_added += 1
 

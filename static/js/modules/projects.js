@@ -491,16 +491,22 @@ async function selectProject(sId, targetSec = null) {
         console.warn("Project Info 조회 실패:", e);
     }
 
+    const isPrecheck = typeof globalPrecheckSessions !== 'undefined' && globalPrecheckSessions.includes(sId);
+    const subPentestTools = document.getElementById('sub-pentest-tools');
     const subScan = document.getElementById('sub-scan');
     const subPrecheck = document.getElementById('sub-precheck');
-    const isPrecheck = typeof globalPrecheckSessions !== 'undefined' && globalPrecheckSessions.includes(sId);
 
     if (isPrecheck) {
+        if (subPentestTools) subPentestTools.style.display = 'none';
         if (subScan) subScan.style.display = 'none';
         if (subPrecheck) subPrecheck.style.display = 'block';
     } else {
+        if (subPentestTools) subPentestTools.style.display = 'block';
         if (subScan) subScan.style.display = 'block';
         if (subPrecheck) subPrecheck.style.display = 'none';
+        // 현재 프로젝트명 표시
+        const label = document.getElementById('currentProjectLabel');
+        if (label) label.textContent = `📁 ${pName}`;
     }
 
     currentProject.name = pName;

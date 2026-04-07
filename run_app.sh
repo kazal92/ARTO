@@ -4,7 +4,11 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python3"
-PYTHON="${VENV_PYTHON:-python3}"
+if [ -x "$VENV_PYTHON" ]; then
+    PYTHON="$VENV_PYTHON"
+else
+    PYTHON="python3"
+fi
 
 # ── Docker 데몬 확인 및 자동 시작 ─────────────────────────
 if ! docker info &>/dev/null 2>&1; then
@@ -28,17 +32,6 @@ docker run --net=host --name zap_main -d \
     ghcr.io/zaproxy/zaproxy:stable \
     zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.disablekey=true
 
-echo -e "${GREEN}[*] ZAP API 준비 대기 (약 15초)...${NC}"
-for i in $(seq 15 -1 1); do
-    printf "\r    남은 시간: %2ds " "$i"; sleep 1
-done
-echo ""
-
-if curl -s http://127.0.0.1:8080/JSON/core/view/version/ &>/dev/null; then
-    echo -e "${GREEN}[V] ZAP API 연결 성공!${NC}"
-else
-    echo -e "${BLUE}[!] ZAP 아직 준비 중일 수 있습니다. 계속 진행합니다.${NC}"
-fi
 
 # .env 로드 (공백/특수문자가 있는 값도 안전하게 처리)
 if [[ -f "$SCRIPT_DIR/.env" ]]; then

@@ -201,6 +201,10 @@
             display: block;
         }
 
+        .content-section.flex-section.active {
+            display: flex;
+        }
+
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -953,6 +957,24 @@
             padding: 4px 0;
         }
 
+        /* 프로젝트 하위 도구 탭 글씨 크기 */
+        #sub-pentest-tools .menu-item {
+            font-size: 0.9rem !important;
+        }
+
+        #sub-pentest-tools #sub-scan .menu-item {
+            font-size: 0.85rem !important;
+        }
+
+        /* 현재 프로젝트 레이블 */
+        #currentProjectLabel {
+            font-size: 0.82rem !important;
+            padding: 5px 12px 5px 1.5rem;
+            color: #f59e0b;
+            font-weight: 600;
+            letter-spacing: 0;
+        }
+
         /* 사이드바 분류 레이블 */
         .label-heading {
             font-size: 0.65rem;
@@ -1326,4 +1348,138 @@
 /* ── 반응형 그리드 패딩 ── */
 .content-section {
     padding: 1.75rem 2rem;
+}
+
+/* ── 에이전트 터미널 ────────────────────────────────────── */
+
+.agent-line {
+    margin-bottom: 4px;
+    padding: 2px 0;
+    word-break: break-all;
+}
+
+.agent-line-system .agent-system-text {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.agent-line-user {
+    margin: 8px 0;
+}
+.agent-user-label {
+    color: #a78bfa;
+    font-weight: 700;
+    margin-right: 6px;
+}
+.agent-user-text {
+    color: #e2e8f0;
+}
+
+.agent-line-assistant .agent-text {
+    color: #f1f5f9;
+    white-space: pre-wrap;
+}
+
+.agent-line-thinking {
+    margin: 6px 0;
+}
+.agent-thinking-summary {
+    color: #94a3b8;
+    font-size: 0.76rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.agent-thinking-summary::-webkit-details-marker { display: none; }
+.agent-thinking-icon { margin-right: 4px; }
+.agent-thinking-text {
+    color: #64748b;
+    font-size: 0.75rem;
+    margin-top: 4px;
+    padding-left: 16px;
+    white-space: pre-wrap;
+    border-left: 2px solid #334155;
+}
+
+.agent-line-tool_call {
+    margin: 6px 0;
+    padding: 6px 10px;
+    background: rgba(59, 130, 246, 0.08);
+    border-left: 3px solid #3b82f6;
+    border-radius: 0 6px 6px 0;
+}
+.agent-tool-icon { margin-right: 6px; }
+.agent-tool-label { color: #60a5fa; font-weight: 600; }
+.agent-tool-pre {
+    color: #93c5fd;
+    font-size: 0.75rem;
+    margin: 4px 0 0 0;
+    white-space: pre-wrap;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.agent-line-tool_result {
+    margin: 2px 0 6px 0;
+    padding: 6px 10px;
+    background: rgba(16, 185, 129, 0.06);
+    border-left: 3px solid #10b981;
+    border-radius: 0 6px 6px 0;
+}
+.agent-result-icon { color: #34d399; margin-right: 6px; }
+.agent-result-pre {
+    color: #6ee7b7;
+    font-size: 0.74rem;
+    margin: 0;
+    white-space: pre-wrap;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.agent-line-finding {
+    margin: 8px 0;
+    padding: 8px 12px;
+    background: rgba(245, 158, 11, 0.12);
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 8px 8px 0;
+}
+.agent-finding-icon { margin-right: 6px; }
+.agent-finding-text {
+    color: #fbbf24;
+    font-weight: 600;
+}
+
+.agent-cursor::after {
+    content: '▋';
+    animation: agentBlink 0.8s infinite;
+    color: #a78bfa;
+}
+@keyframes agentBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* 상태 도트 */
+.agent-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.dot-idle { background: #475569; }
+.dot-running {
+    background: #a78bfa;
+    box-shadow: 0 0 6px #a78bfa;
+    animation: dotPulse 1.2s infinite;
+}
+.dot-done { background: #10b981; }
+@keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── 웹 터미널 ───────────────────────────────────────────── */
+#terminalContainer .xterm {
+    width: 100% !important;
+    height: 100% !important;
+}
+#terminalContainer .xterm-viewport,
+#terminalContainer .xterm-screen {
+    width: 100% !important;
 }

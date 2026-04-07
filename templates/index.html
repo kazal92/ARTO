@@ -31,38 +31,74 @@
                 </div>
             </div>
             <div class="sidebar-menu">
-                <!-- 🌍 전역 메뉴 (Global Hub) -->
-                <div class="label-heading px-3 mt-2 mb-1"
-                    style="font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px;">
-                    WORKSPACE ACCS</div>
+                <!-- 홈 -->
                 <div class="menu-item active" data-sec="section-dashboard"
                     onclick="exitProjectMode('section-dashboard')">
                     <i class="fa-solid fa-house text-primary"></i><span>대시보드 홈</span>
                 </div>
-                <div class="menu-item" data-sec="section-projects" onclick="exitProjectMode()">
-                    <i class="fa-solid fa-folder-tree text-warning"></i><span>취약점 스캐너</span>
+
+                <!-- PENTEST PROJECT 탭 (클릭 → 프로젝트 목록) -->
+                <div class="menu-item mt-2" data-sec="section-projects"
+                    onclick="exitProjectMode('section-projects');">
+                    <i class="fa-solid fa-shield-halved" style="color:#f59e0b;"></i>
+                    <span style="font-weight:700;">PENTEST PROJECT</span>
                 </div>
-                <!-- 🛡️ 취약점 스캔 하위 서브메뉴 -->
-                <div id="sub-scan" class="sub-menu-list" style="display: none;">
-                    <div class="menu-item" data-sec="section-overview" onclick="switchSection('section-overview')"
-                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔대상</span>
+
+                <!-- 프로젝트 선택 후 표시되는 도구 목록 (기본 숨김) -->
+                <div id="sub-pentest-tools" class="sub-menu-list" style="display:none;">
+                    <!-- 현재 프로젝트 표시 -->
+                    <div id="currentProjectLabel" style="padding: 4px 12px 4px 1.5rem; font-size:0.72rem; color:#f59e0b; font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+
+                    <!-- 취약점 스캐너 -->
+                    <div class="menu-item" data-sec="section-overview"
+                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
+                        onclick="switchSection('section-overview');">
+                        <i class="fa-solid fa-radar text-warning" style="font-size: 0.85rem;"></i><span>취약점 스캐너</span>
                     </div>
-                    <div class="menu-item" data-sec="section-endpoints" onclick="switchSection('section-endpoints')"
-                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트 AI 분석</span>
+                    <div id="sub-scan" class="sub-menu-list" style="display: none;">
+                        <div class="menu-item" data-sec="section-overview" onclick="switchSection('section-overview')"
+                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                            <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔 대상</span>
+                        </div>
+                        <div class="menu-item" data-sec="section-endpoints" onclick="switchSection('section-endpoints')"
+                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                            <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트 분석</span>
+                        </div>
+                        <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-vulns')"
+                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                            <i class="fa-solid fa-shield-virus" style="font-size: 0.85rem;"></i><span>스캔 결과</span>
+                        </div>
                     </div>
-                    <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-vulns')"
-                        style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-solid fa-shield-virus" style="font-size: 0.85rem;"></i><span>스캔 결과</span>
+
+                    <!-- 에이전트 점검 -->
+                    <div class="menu-item" data-sec="section-agent"
+                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
+                        onclick="switchSection('section-agent'); initAgent();">
+                        <i class="fa-solid fa-robot" style="color:#a78bfa; font-size: 0.85rem;"></i><span>에이전트 점검</span>
+                    </div>
+
+                    <!-- 웹 터미널 -->
+                    <div class="menu-item" data-sec="section-terminal"
+                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
+                        onclick="switchSection('section-terminal'); startTerminal();">
+                        <i class="fa-solid fa-terminal" style="color:#34d399; font-size: 0.85rem;"></i><span>웹 터미널</span>
+                    </div>
+
+                    <!-- 프로젝트 나가기 -->
+                    <div class="menu-item" style="padding-left: 2.3rem !important; font-size: 0.78rem; margin: 2px 8px; opacity:0.5;"
+                        onclick="exitProjectMode('section-projects');">
+                        <i class="fa-solid fa-arrow-left" style="font-size: 0.8rem;"></i><span>프로젝트 목록</span>
                     </div>
                 </div>
 
+                <!-- 사전 점검 도구 -->
+                <div class="label-heading px-3 mt-3 mb-1"
+                    style="font-size: 0.62rem; color: var(--text-muted); font-weight: 700; letter-spacing: 1px;">
+                    TOOLS</div>
                 <div class="menu-item" data-sec="section-precheck-projects"
                     onclick="exitProjectMode('section-precheck-projects');">
                     <i class="fa-solid fa-bolt text-info"></i><span>사전 점검 도구</span>
                 </div>
-                <!-- ⚡ 사전 점검 하위 서브메뉴 -->
                 <div id="sub-precheck" class="sub-menu-list" style="display: none;">
                     <div class="menu-item" data-sec="section-alive" onclick="switchSection('section-alive')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
@@ -75,8 +111,7 @@
                     </div>
                     <div class="menu-item" data-sec="section-dork" onclick="switchSection('section-dork')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-brands fa-google text-success" style="font-size: 0.85rem;"></i><span>Google Dork
-                            스캔</span>
+                        <i class="fa-brands fa-google text-success" style="font-size: 0.85rem;"></i><span>Google Dork</span>
                     </div>
                 </div>
             </div>
@@ -110,6 +145,69 @@
                         style="font-size: 0.75rem; padding: 0.3rem 0.75rem; width: 180px;" placeholder="프로젝트 검색..."
                         onkeyup="filterProjects()">
                 </div>
+            </div>
+
+            <!-- ─── 에이전트 점검 (웹터미널) ─────────────────────────────── -->
+            <!-- ── 에이전트 점검 ── -->
+            <div id="section-agent" class="content-section flex-section" style="padding:0; flex-direction:column; height:100vh; overflow:hidden;">
+                <!-- 헤더 컨트롤 -->
+                <div style="padding:10px 16px; border-bottom:1px solid var(--border-color); flex-shrink:0; background:var(--card-bg);">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <i class="fa-solid fa-robot" style="color:#a78bfa;"></i>
+                        <span style="font-weight:700; font-size:0.9rem;">AI 에이전트 점검</span>
+                        <span class="agent-status-dot dot-idle" id="agentStatusDot"></span>
+                        <span id="agentStatusText" style="font-size:0.78rem; color:var(--text-muted);">대기 중</span>
+                        <span id="agentFindingBadge" style="font-size:0.72rem; background:#7c3aed22; color:#a78bfa; border:1px solid #7c3aed55; border-radius:4px; padding:1px 8px;">취약점 0건</span>
+                        <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+                            <input id="agentTargetInput" type="text" class="form-control form-control-sm"
+                                placeholder="https://target.com" style="width:240px; font-size:0.8rem; font-family:monospace;">
+                            <button id="agentStartBtn" class="btn btn-sm btn-outline-success" onclick="startAgent()" style="font-size:0.78rem;">
+                                <i class="fa-solid fa-play me-1"></i>에이전트 시작
+                            </button>
+                            <button id="agentStopBtn" class="btn btn-sm btn-outline-danger" onclick="stopAgent()" disabled style="font-size:0.78rem;">
+                                <i class="fa-solid fa-stop me-1"></i>중단
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearAgentOutput()" style="font-size:0.78rem;">
+                                <i class="fa-solid fa-trash me-1"></i>초기화
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 에이전트 출력창 -->
+                <div id="agentOutput" style="flex:1; overflow-y:auto; padding:12px 16px; font-family:'Fira Code','Cascadia Code',monospace; font-size:0.82rem; background:#0d0f17; color:#e2e8f0; line-height:1.6;"></div>
+
+                <!-- 사용자 메시지 입력 -->
+                <div style="border-top:1px solid var(--border-color); padding:8px 12px; background:var(--card-bg); flex-shrink:0; display:flex; gap:8px; align-items:flex-end;">
+                    <textarea id="agentMsgInput" class="form-control form-control-sm"
+                        placeholder="에이전트에게 지시... (예: /admin 경로 집중해서 봐, 파라미터 id에 SQLi 시도해봐)"
+                        style="font-size:0.82rem; resize:none; height:38px; font-family:monospace; background:var(--input-bg); color:var(--text-main); border-color:var(--border-color);"
+                        onkeydown="agentMsgKeydown(event)"
+                        oninput="_agentResizeInput(this)"></textarea>
+                    <button class="btn btn-sm btn-outline-primary" onclick="sendAgentMessage()" style="font-size:0.78rem; white-space:nowrap;">
+                        <i class="fa-solid fa-paper-plane me-1"></i>전송
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── 웹 터미널 ── -->
+            <div id="section-terminal" class="content-section flex-section" style="padding:0; flex-direction:column; height:100vh;">
+                <div style="padding:10px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-color); flex-shrink:0;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-terminal" style="color:#34d399; font-size:1.1rem;"></i>
+                        <span style="font-weight:700; font-size:0.95rem;">웹 터미널</span>
+                        <span style="font-size:0.72rem; color:var(--text-muted);">zsh @ kali</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-warning" onclick="termKillSession()" style="font-size:0.75rem;">
+                            <i class="fa-solid fa-rotate me-1"></i>세션 재시작
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="termDisconnect()" style="font-size:0.75rem;">
+                            <i class="fa-solid fa-plug-circle-xmark me-1"></i>연결 종료
+                        </button>
+                    </div>
+                </div>
+                <div id="terminalContainer" style="flex:1; background:#0d0f17; overflow:hidden;"></div>
             </div>
 
             <!-- Precheck Projects List -->
@@ -609,6 +707,101 @@
                     </div>
                 </div>
 
+                <!-- ⚙️ AI 설정 패널 -->
+                <div class="glass-card mb-4" style="border-top: 3px solid var(--primary);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold m-0">
+                            <i class="fa-solid fa-brain text-primary me-2"></i>AI 설정
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-xs btn-outline-danger" onclick="clearAiSettingsCache()" style="font-size:0.72rem;">
+                                <i class="fa-solid fa-trash me-1"></i>캐시 초기화
+                            </button>
+                            <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#aiSettingsCollapse">
+                                <i class="fa-solid fa-chevron-down me-1"></i>접기/펼치기
+                            </button>
+                        </div>
+                    </div>
+                    <div class="collapse show" id="aiSettingsCollapse">
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
+                                <select id="aiType" class="form-select"
+                                    style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="localStorage.setItem('aiType', this.value); toggleAiSettings(true);">
+                                    <option value="gemini">Google Gemini AI</option>
+                                    <option value="claude">Anthropic Claude</option>
+                                    <option value="lmstudio">LM Studio (Local)</option>
+                                    <option value="vertex">Google Vertex AI (미완성)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label text-muted small fw-bold mb-0">Model Name</label>
+                                    <button id="btnFetchModels" class="btn btn-xs btn-link text-primary p-0"
+                                        style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                        onclick="fetchLmStudioModels()">
+                                        <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
+                                    </button>
+                                </div>
+                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b" oninput="localStorage.setItem('aiModel', this.value);">
+                                <select id="aiModelLmSelect" class="form-select mt-1"
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                </select>
+                                <select id="aiModelSelect" class="form-select"
+                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                                    onchange="document.getElementById('aiModel').value = this.value">
+                                    <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
+                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-3 mb-2">
+                            <div class="col-md-6" id="aiUrlContainer">
+                                <label class="form-label text-muted small fw-bold">API EndPoint URL</label>
+                                <input type="text" id="aiUrl" class="glass-input w-100" placeholder="http://아이피/v1"
+                                    oninput="localStorage.setItem('aiUrl', this.value); fetchLmStudioModels(true);">
+                            </div>
+                            <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Gemini API Key</label>
+                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="localStorage.setItem('geminiApiKey', this.value); fetchGeminiModels();">
+                            </div>
+                            <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
+                                <input type="text" id="lmstudioApiKey" class="glass-input w-100" placeholder="API Key 입력 (필요시)" oninput="localStorage.setItem('lmstudioApiKey', this.value);">
+                            </div>
+                            <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
+                                <input type="password" id="vertexApiKey" class="glass-input w-100" placeholder="ya29... (Bearer Token)" oninput="localStorage.setItem('vertexApiKey', this.value);">
+                            </div>
+                            <div class="col-md-6" id="claudeKeyContainer" style="display: none;">
+                                <label class="form-label text-muted small fw-bold">Claude API Key</label>
+                                <input type="password" id="claudeApiKey" class="glass-input w-100" placeholder="sk-ant-..." oninput="localStorage.setItem('claudeApiKey', this.value);">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
+                            <button class="btn btn-xs btn-link text-secondary p-0"
+                                style="font-size: 0.68rem; border:none; text-decoration:none;"
+                                onclick="document.getElementById('aiPromptCustom').value = ''; localStorage.removeItem('aiPromptCustom');">
+                                <i class="fa-solid fa-rotate-left me-1"></i>기본값으로 초기화
+                            </button>
+                        </div>
+                        <textarea id="aiPromptCustom" class="glass-input w-100 mb-2" rows="4"
+                            style="resize: vertical; min-height: 80px; font-size: 0.8rem; font-family: monospace;"
+                            placeholder="비워두면 기본 프롬프트 사용. {batch_str} 위치에 분석 데이터가 삽입됩니다."></textarea>
+                        <div style="max-width: 160px;">
+                            <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
+                            <input type="number" id="maxEndpointsPerBatch" class="glass-input w-100" min="0" value="0"
+                                placeholder="0 = 제한없음" style="text-align:center;">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="glass-card">
                     <label class="form-label text-muted small text-uppercase fw-bold">스캔 진척률</label>
                     <div class="d-flex justify-content-between mb-1" style="font-size: 0.85rem;">
@@ -693,89 +886,6 @@
                         <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
                             <i class="fa-solid fa-brain me-1"></i>AI 분석 시작
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#aiSettingsCollapse" aria-expanded="true">
-                            <i class="fa-solid fa-sliders me-1"></i>AI 설정
-                        </button>
-                    </div>
-                </div>
-
-                <!-- ⚙️ AI / ffuf 설정 패널 -->
-                <div class="collapse show mb-3" id="aiSettingsCollapse">
-                    <div class="glass-card" style="border-top: 3px solid var(--primary);">
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-6">
-                                <label class="form-label text-muted small fw-bold">AI 엔진 타입</label>
-                                <select id="aiType" class="form-select"
-                                    style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
-                                    onchange="toggleAiSettings(true)">
-                                    <option value="gemini">Google Gemini AI</option>
-                                    <option value="lmstudio">LM Studio (Local)</option>
-                                    <option value="vertex">Google Vertex AI (미완성)</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label class="form-label text-muted small fw-bold mb-0">Model Name</label>
-                                    <button id="btnFetchModels" class="btn btn-xs btn-link text-primary p-0"
-                                        style="font-size: 0.68rem; border:none; text-decoration:none;"
-                                        onclick="fetchLmStudioModels()">
-                                        <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
-                                    </button>
-                                </div>
-                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b">
-                                <select id="aiModelLmSelect" class="form-select mt-1"
-                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
-                                    onchange="document.getElementById('aiModel').value = this.value">
-                                </select>
-                                <select id="aiModelSelect" class="form-select"
-                                    style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
-                                    onchange="document.getElementById('aiModel').value = this.value">
-                                    <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview-03-25</option>
-                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                                    <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-                                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
-                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-6" id="aiUrlContainer">
-                                <label class="form-label text-muted small fw-bold">API EndPoint URL</label>
-                                <input type="text" id="aiUrl" class="glass-input w-100" placeholder="http://아이피/v1"
-                                    oninput="fetchLmStudioModels(true)">
-                            </div>
-                            <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">Gemini API Key</label>
-                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="fetchGeminiModels()">
-                            </div>
-                            <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
-                                <input type="text" id="lmstudioApiKey" class="glass-input w-100"
-                                    placeholder="API Key 입력 (필요시)">
-                            </div>
-                            <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
-                                <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
-                                <input type="password" id="vertexApiKey" class="glass-input w-100"
-                                    placeholder="ya29... (Bearer Token)">
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label class="form-label text-muted small fw-bold mb-0">AI 분석 프롬프트 커스텀</label>
-                            <button class="btn btn-xs btn-link text-secondary p-0"
-                                style="font-size: 0.68rem; border:none; text-decoration:none;"
-                                onclick="document.getElementById('aiPromptCustom').value = ''; localStorage.removeItem('aiPromptCustom');">
-                                <i class="fa-solid fa-rotate-left me-1"></i>기본값으로 초기화
-                            </button>
-                        </div>
-                        <textarea id="aiPromptCustom" class="glass-input w-100 mb-2" rows="4"
-                            style="resize: vertical; min-height: 80px; font-size: 0.8rem; font-family: monospace;"
-                            placeholder="비워두면 기본 프롬프트 사용. {batch_str} 위치에 분석 데이터가 삽입됩니다."></textarea>
-
-                        <div style="flex:0 0 140px;">
-                            <label class="form-label text-muted small fw-bold">AI 배치 크기</label>
-                            <input type="number" id="maxEndpointsPerBatch" class="glass-input w-100" min="0" value="0"
-                                placeholder="0 = 제한없음" style="text-align:center;">
-                        </div>
                     </div>
                 </div>
 
@@ -980,6 +1090,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
 
     <!-- ARTO Modules (의존성 순서로 로드) -->
     <script src="/static/js/modules/utils.js"></script>
@@ -991,6 +1104,8 @@
     <script src="/static/js/modules/projects.js"></script>
     <script src="/static/js/modules/scan.js"></script>
     <script src="/static/js/modules/main.js"></script>
+    <script src="/static/js/modules/agent.js"></script>
+    <script src="/static/js/modules/terminal.js"></script>
 
     <!-- 앱 진입점 (경량화됨) -->
     <script src="/static/js/app.js"></script>

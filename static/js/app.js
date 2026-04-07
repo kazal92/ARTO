@@ -14,6 +14,7 @@ window.onload = () => {
     initRouter();
     loadHistoryList();
     if (typeof loadWordlists === 'function') loadWordlists();
+    if (typeof initAgent === 'function') initAgent();
 };
 
 function initRouter() {

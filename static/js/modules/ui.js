@@ -22,6 +22,8 @@ function switchSection(sectionId) {
             'section-newscan': '<i class="fa-solid fa-square-plus text-success me-1"></i> 신규 프로젝트 생성',
             'section-settings': '<i class="fa-solid fa-gear text-secondary me-1"></i> 환경 설정 (AI / 프록시)',
             'section-precheck': '<i class="fa-solid fa-bolt text-info me-1"></i> 사전 점검 도구 (URL Alive Check)',
+            'section-agent': '<i class="fa-solid fa-robot me-1" style="color:#a78bfa;"></i> AI 에이전트 점검',
+            'section-terminal': '<i class="fa-solid fa-terminal me-1" style="color:#34d399;"></i> 웹 터미널',
         };
         if (labels[sectionId]) breadcrumbText.innerHTML = labels[sectionId];
     }
@@ -45,8 +47,10 @@ function exitProjectMode(sectionId = 'section-projects') {
     switchSection(sectionId);
     
     // 3. UI 초기화
+    const subPentestTools = document.getElementById('sub-pentest-tools');
     const subScan = document.getElementById('sub-scan');
     const subPrecheck = document.getElementById('sub-precheck');
+    if (subPentestTools) subPentestTools.style.display = 'none';
     if (subScan) subScan.style.display = 'none';
     if (subPrecheck) subPrecheck.style.display = 'none';
 
@@ -90,6 +94,17 @@ function updateBrowserUrlFromSection(sectionId) {
     if (window.location.pathname !== newPath) {
         window.history.pushState({ sectionId, sId: sid }, "", newPath);
     }
+}
+
+// ── 서브메뉴 토글 ────────────────────────────────────────
+
+function toggleSubMenu(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : 'block';
+    const chevron = document.getElementById('chevron-' + id.replace('sub-', ''));
+    if (chevron) chevron.style.transform = isOpen ? 'rotate(-90deg)' : '';
 }
 
 // ── 서랍 (Side Drawer) ──────────────────────────────────

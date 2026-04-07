@@ -14,6 +14,8 @@ from api.history import router as history_router
 from api.zap import router as zap_router
 from api.precheck import router as precheck_router
 from api.session_ops import router as session_router
+from api.agent import router as agent_router
+from api.terminal import router as terminal_router
 
 app = FastAPI(title="ARTO Web Dashboard")
 templates = Jinja2Templates(directory="templates")
@@ -24,6 +26,8 @@ app.include_router(history_router)
 app.include_router(zap_router)
 app.include_router(precheck_router)
 app.include_router(session_router)
+app.include_router(agent_router)
+app.include_router(terminal_router)
 
 
 @app.get("/", response_class=HTMLResponse)

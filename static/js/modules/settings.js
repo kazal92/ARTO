@@ -29,11 +29,14 @@ function toggleAiSettings(shouldUpdateUrl = false) {
         } else if (aiType === 'vertex') {
             if (aiUrlInput) aiUrlInput.value = 'https://us-central1-aiplatform.googleapis.com/v1';
             if (aiModelInput) aiModelInput.value = 'gemini-2.0-flash';
+        } else if (aiType === 'claude') {
+            if (aiUrlInput) aiUrlInput.value = 'https://api.anthropic.com';
+            if (aiModelInput) aiModelInput.value = 'claude-sonnet-4-6';
         }
     }
 
     // 1. 모든 컨테이너 숨기기
-    const containers = ['aiUrlContainer', 'geminiKeyContainer', 'lmstudioKeyContainer', 'vertexKeyContainer'];
+    const containers = ['aiUrlContainer', 'geminiKeyContainer', 'lmstudioKeyContainer', 'vertexKeyContainer', 'claudeKeyContainer'];
     containers.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -73,6 +76,10 @@ function toggleAiSettings(shouldUpdateUrl = false) {
         if (urlCont) urlCont.style.display = '';
         if (keyCont) keyCont.style.display = '';
         if (modelInput) modelInput.style.display = '';
+    } else if (aiType === 'claude') {
+        const keyCont = document.getElementById('claudeKeyContainer');
+        if (keyCont) keyCont.style.display = '';
+        if (modelInput) modelInput.style.display = '';
     }
 }
 
@@ -81,6 +88,7 @@ function saveSettings() {
     localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
     localStorage.setItem('lmstudioApiKey', document.getElementById('lmstudioApiKey').value || '');
     localStorage.setItem('vertexApiKey', document.getElementById('vertexApiKey').value || '');
+    localStorage.setItem('claudeApiKey', document.getElementById('claudeApiKey')?.value || '');
     localStorage.setItem('aiUrl', document.getElementById('aiUrl').value);
     localStorage.setItem('aiModel', document.getElementById('aiModel').value);
     localStorage.setItem('customHeaders', document.getElementById('customHeaders').value);
@@ -93,21 +101,18 @@ function loadSettings() {
     if (typeof updateThemeUI === 'function') updateThemeUI(savedTheme);
 
     const aiType = localStorage.getItem('aiType') || 'gemini';
-    const defaultUrl = aiType === 'gemini'
-        ? 'https://generativelanguage.googleapis.com/v1beta/openai/'
-        : 'http://192.168.1.100:1234/v1';
+    let defaultUrl = 'http://192.168.1.100:1234/v1';
+    if (aiType === 'gemini') defaultUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+    else if (aiType === 'claude') defaultUrl = 'https://api.anthropic.com';
     const aiUrl = localStorage.getItem('aiUrl') || defaultUrl;
 
     // AI 타입에 따라 기본 모델 결정
     let aiModel = localStorage.getItem('aiModel');
     if (!aiModel) {
-        if (aiType === 'gemini') {
-            aiModel = 'gemini-2.0-flash';
-        } else if (aiType === 'vertex') {
-            aiModel = 'gemini-2.0-flash';
-        } else {
-            aiModel = 'qwen/qwen3.5-9b';
-        }
+        if (aiType === 'gemini') aiModel = 'gemini-2.0-flash';
+        else if (aiType === 'vertex') aiModel = 'gemini-2.0-flash';
+        else if (aiType === 'claude') aiModel = 'claude-sonnet-4-6';
+        else aiModel = 'qwen/qwen3.5-9b';
     }
 
     const set = (id, val) => { if (document.getElementById(id)) document.getElementById(id).value = val; };
@@ -115,6 +120,7 @@ function loadSettings() {
     set('geminiApiKey', localStorage.getItem('geminiApiKey') || '');
     set('lmstudioApiKey', localStorage.getItem('lmstudioApiKey') || '');
     set('vertexApiKey', localStorage.getItem('vertexApiKey') || '');
+    set('claudeApiKey', localStorage.getItem('claudeApiKey') || '');
     set('aiUrl', aiUrl);
     set('aiModel', aiModel);
     set('customHeaders', localStorage.getItem('customHeaders') || '');
@@ -156,6 +162,20 @@ async function updateProxySettings() {
     } catch (e) {
         console.error(e);
     }
+}
+
+function clearAiSettingsCache() {
+    if (!confirm('AI 설정 캐시를 모두 초기화하시겠습니까?\n(API 키, 모델, URL 등 저장된 값이 삭제됩니다)')) return;
+    const keys = ['aiType', 'aiUrl', 'aiModel', 'geminiApiKey', 'lmstudioApiKey', 'vertexApiKey', 'claudeApiKey', 'aiPromptCustom', 'customHeaders'];
+    keys.forEach(k => localStorage.removeItem(k));
+    // 입력 필드 초기화
+    const clear = (id) => { const el = document.getElementById(id); if (el) el.value = ''; };
+    clear('aiUrl'); clear('aiModel'); clear('geminiApiKey'); clear('lmstudioApiKey');
+    clear('vertexApiKey'); clear('claudeApiKey'); clear('aiPromptCustom'); clear('customHeaders');
+    const aiType = document.getElementById('aiType');
+    if (aiType) aiType.value = 'gemini';
+    if (typeof toggleAiSettings === 'function') toggleAiSettings();
+    alert('AI 설정 캐시가 초기화되었습니다.');
 }
 
 async function toggleProxy() {

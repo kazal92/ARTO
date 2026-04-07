@@ -271,55 +271,58 @@ def get_heuristic_score(method: str, url: str, params: str = "", body: str = "",
     return score
 
 
-def _html_to_markdown(html_content: str) -> str:
-    """BeautifulSoup과 markdownify를 이용해 HTML을 순수 텍스트(마크다운)로 압축합니다."""
+def _extract_security_elements(html_content: str) -> dict:
+    """HTML에서 보안 분석에 필요한 요소(script, form, input)만 직접 추출합니다."""
     try:
         from bs4 import BeautifulSoup
-        import markdownify
 
         soup = BeautifulSoup(html_content, 'lxml')
-        for tag in soup(["css", "style", "svg", "nav", "footer", "meta", "link", "noscript", "iframe"]):
-            tag.decompose()
 
+        scripts = []
         for script in soup.find_all("script"):
-            if script.string:
-                script_content = f"\n```javascript\n{script.string.strip()}\n```\n"
-                script.replace_with(soup.new_string(script_content))
-            else:
-                script.decompose()
+            if script.string and script.string.strip():
+                scripts.append(f"```javascript\n{script.string.strip()}\n```")
 
-        md = markdownify.markdownify(str(soup), heading_style="ATX").strip()
-        md = re.sub(r'\n\s*\n', '\n\n', md)
-        return md
+        forms = []
+        for form in soup.find_all("form"):
+            action = form.get('action', '')
+            method = form.get('method', 'GET').upper()
+            fields = []
+            for inp in form.find_all(['input', 'select', 'textarea']):
+                name = inp.get('name', '')
+                itype = inp.get('type', 'text')
+                value = inp.get('value', '')
+                if name:
+                    fields.append(f"{itype}:{name}={value}")
+            field_str = " | ".join(fields) if fields else "(no fields)"
+            forms.append(f"[FORM action={action} method={method}] {field_str}")
+
+        return {"scripts": scripts, "forms": forms}
     except Exception:
-        return html_content[:5000]
+        return {"scripts": [], "forms": []}
 
 
 def extract_relevant_snippet(url: str, req_body: str, res_body: str, max_len: int = 3000) -> dict:
-    """요청과 응답을 구조적으로 분리하고 스크립트/폼 데이터를 우선 추출합니다."""
+    """요청과 응답에서 보안 분석용 요소를 추출합니다."""
     if not res_body:
         return {"request_context": req_body if req_body else "N/A (GET or Empty Body)", "response_context": ""}
 
-    reduced_body = _html_to_markdown(res_body)
+    extracted = _extract_security_elements(res_body)
+    scripts = extracted["scripts"]
+    forms = extracted["forms"]
 
-    scripts_found = re.findall(r'```javascript.*?```', reduced_body, re.DOTALL)
-    forms_found = re.findall(r'\[INPUT.*?\]', reduced_body)
+    parts = []
+    if scripts:
+        parts.append("[Scripts]\n" + "\n".join(scripts))
+    if forms:
+        parts.append("[Forms]\n" + "\n".join(forms))
 
-    priority_content = "\n".join(scripts_found + forms_found)
+    priority_content = "\n\n".join(parts)
 
-    if len(reduced_body) <= max_len:
-        final_res = priority_content + "\n\n[Body Text]:\n" + reduced_body if priority_content else reduced_body
-    else:
-        if len(priority_content) > max_len // 2:
-            priority_content = priority_content[:max_len // 2] + "\n...(Priority Content Truncated)..."
+    if len(priority_content) > max_len:
+        priority_content = priority_content[:max_len] + "\n...(Truncated)..."
 
-        remaining_space = max_len - len(priority_content)
-        half = remaining_space // 2
-
-        if priority_content:
-            final_res = f"[Extracted Scripts/Forms]\n{priority_content}\n\n[Reduced Body Snippet]:\n{reduced_body[:half]}\n...[SNIPPED]...\n{reduced_body[-half:]}"
-        else:
-            final_res = f"{reduced_body[:half]}\n...[SNIPPED]...\n{reduced_body[-half:]}"
+    final_res = priority_content if priority_content else "(no scripts or forms found)"
 
     return {
         "request_context": req_body if req_body else "N/A (GET or Empty Body)",

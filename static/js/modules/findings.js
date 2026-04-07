@@ -211,6 +211,10 @@ function openVerifyModal(index, editMode = false) {
                 <div class="text-muted text-uppercase mb-2" style="font-size:0.7rem;">Target Location</div>
                 <div class="text-info font-mono" style="word-break:break-all;background:var(--bg-hover);padding:8px;border-radius:4px;font-size:0.8rem;border:1px solid var(--border-color);">${card.target || '-'}</div>
             </div>
+            ${card.scanned_from ? `<div class="mb-3">
+                <div class="text-muted text-uppercase mb-2" style="font-size:0.7rem;">Scanned From</div>
+                <div class="font-mono" style="word-break:break-all;background:var(--bg-hover);padding:8px;border-radius:4px;font-size:0.78rem;border:1px solid var(--border-color);color:var(--text-muted);">${esc(card.scanned_from)}</div>
+            </div>` : ''}
             <hr class="border-secondary opacity-25">
             <div class="mb-3">
                 <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Technical Summary</div>
@@ -219,6 +223,10 @@ function openVerifyModal(index, editMode = false) {
             <div class="mb-3">
                 <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Reproduction Evidence</div>
                 <pre class="p-2 rounded font-mono" style="font-size:0.75rem;border:1px solid var(--border-color);max-height:200px;overflow:auto;background:var(--bg-hover);color:var(--text-main);">${esc(card.evidence) || 'N/A'}</pre>
+            </div>
+            <div class="mb-3">
+                <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Reproduction Steps</div>
+                <div class="p-3 rounded" style="background:var(--bg-hover);border:1px solid var(--border-color);font-size:0.88rem;white-space:pre-line;">${esc(card.steps) || 'N/A'}</div>
             </div>
             <div class="mb-0">
                 <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Recommendation / Remediation</div>
@@ -234,21 +242,40 @@ function openVerifyModal(index, editMode = false) {
             </div>
             <pre id="vulnJsonPre_${index}" class="p-3 rounded font-mono" style="font-size:0.75rem;border:1px solid var(--border-color);max-height:500px;overflow:auto;background:var(--bg-hover);color:var(--text-main);white-space:pre-wrap;word-wrap:break-word;">${JSON.stringify(card, null, 2)}</pre>
         `;
-        
+
+        const hasReqRes = card._raw_request || card._response_context;
+        const reqresTabContent = hasReqRes ? `
+            <div class="mb-3">
+                <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Raw Request</div>
+                <pre class="p-2 rounded font-mono" style="font-size:0.75rem;border:1px solid var(--border-color);max-height:300px;overflow:auto;background:var(--bg-hover);color:var(--text-main);white-space:pre-wrap;word-wrap:break-word;">${esc(card._raw_request) || 'N/A'}</pre>
+            </div>
+            <div class="mb-0">
+                <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Response Context</div>
+                <pre class="p-2 rounded font-mono" style="font-size:0.75rem;border:1px solid var(--border-color);max-height:300px;overflow:auto;background:var(--bg-hover);color:var(--text-main);white-space:pre-wrap;word-wrap:break-word;">${esc(card._response_context) || 'N/A'}</pre>
+            </div>
+        ` : '<div class="text-muted text-center py-4" style="font-size:0.85rem;">원본 요청/응답 데이터 없음</div>';
+
         html = `
             <div class="mb-3" style="border-bottom:1px solid var(--border-color);display:flex;gap:12px;">
                 <button class="tab-btn active" onclick="switchVulnTab(this, ${index}, 'details')" style="background:none;border:none;color:var(--text-main);padding:12px 16px;cursor:pointer;border-bottom:2px solid var(--primary);font-size:0.9rem;font-weight:600;">
                     <i class="fa-solid fa-list me-2"></i>상세정보
                 </button>
+                <button class="tab-btn" onclick="switchVulnTab(this, ${index}, 'reqres')" style="background:none;border:none;color:var(--text-muted);padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;font-size:0.9rem;font-weight:600;">
+                    <i class="fa-solid fa-terminal me-2"></i>요청/응답
+                </button>
                 <button class="tab-btn" onclick="switchVulnTab(this, ${index}, 'json')" style="background:none;border:none;color:var(--text-muted);padding:12px 16px;cursor:pointer;border-bottom:2px solid transparent;font-size:0.9rem;font-weight:600;">
                     <i class="fa-solid fa-code me-2"></i>JSON
                 </button>
             </div>
-            
+
             <div id="vulnTab_details_${index}" class="tab-content" style="display:block;">
                 ${detailsTabContent}
             </div>
-            
+
+            <div id="vulnTab_reqres_${index}" class="tab-content" style="display:none;">
+                ${reqresTabContent}
+            </div>
+
             <div id="vulnTab_json_${index}" class="tab-content" style="display:none;">
                 ${jsonTabContent}
             </div>
@@ -280,14 +307,18 @@ function switchVulnTab(tabBtn, cardIndex, tabType) {
     
     // 모든 컨텐츠 숨기기
     const detailsTab = document.getElementById(`vulnTab_details_${cardIndex}`);
+    const reqresTab = document.getElementById(`vulnTab_reqres_${cardIndex}`);
     const jsonTab = document.getElementById(`vulnTab_json_${cardIndex}`);
-    
+
     if (detailsTab) detailsTab.style.display = 'none';
+    if (reqresTab) reqresTab.style.display = 'none';
     if (jsonTab) jsonTab.style.display = 'none';
-    
+
     // 선택된 탭 표시
     if (tabType === 'details' && detailsTab) {
         detailsTab.style.display = 'block';
+    } else if (tabType === 'reqres' && reqresTab) {
+        reqresTab.style.display = 'block';
     } else if (tabType === 'json' && jsonTab) {
         jsonTab.style.display = 'block';
     }
