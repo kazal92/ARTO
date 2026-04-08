@@ -88,6 +88,8 @@ function updateBrowserUrlFromSection(sectionId) {
     } else if (sectionId === "section-overview" && sid) newPath = `/scan/${sid}/overview`;
     else if (sectionId === "section-endpoints" && sid) newPath = `/scan/${sid}/endpoints`;
     else if (sectionId === "section-vulns" && sid) newPath = `/scan/${sid}/vulns`;
+    else if (sectionId === "section-agent" && sid) newPath = `/scan/${sid}/agent`;
+    else if (sectionId === "section-terminal" && sid) newPath = `/scan/${sid}/terminal`;
     else if (sectionId === "section-alive" && sid) newPath = `/precheck/${sid}/alive`;
     else if (sectionId === "section-shodan" && sid) newPath = `/precheck/${sid}/shodan`;
 

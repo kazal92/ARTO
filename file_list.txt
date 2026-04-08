@@ -1,0 +1,25 @@
+합계 136
+drwxr-xr-x 13 kali kali  4096  4월  8일  01:19 .
+drwxr-xr-x  4 kali kali  4096  4월  7일  23:47 ..
+drwxr-xr-x  4 kali kali  4096  4월  8일  01:11 .continue
+drwxr-xr-x  7 kali kali  4096  4월  7일  23:49 .git
+-rw-r--r--  1 kali kali   435  4월  7일  23:47 .gitignore
+drwxr-xr-x  5 kali kali  4096  4월  7일  23:47 .venv
+-rw-r--r--  1 kali kali 14879  4월  7일  23:47 README.md
+drwxr-xr-x  2 kali kali  4096  4월  7일  23:47 __pycache__
+drwxr-xr-x  3 kali kali  4096  4월  7일  23:47 agents
+-rw-r--r--  1 kali kali 11117  4월  7일  23:47 alive_checker.py
+drwxr-xr-x  3 kali kali  4096  4월  7일  23:47 api
+-rw-r--r--  1 kali kali   588  4월  7일  23:47 config.py
+drwxr-xr-x  3 kali kali  4096  4월  7일  23:47 core
+-rw-r--r--  1 kali kali     0  4월  8일  01:19 file_list.txt
+-rw-r--r--  1 kali kali  1729  4월  7일  23:47 main.py
+drwxr-xr-x  3 kali kali  4096  4월  7일  23:48 results
+-rwxr-xr-x  1 kali kali  1613  4월  7일  23:47 run_app.sh
+-rwxr-xr-x  1 kali kali 15033  4월  7일  23:47 setup.sh
+drwxr-xr-x  4 kali kali  4096  4월  7일  23:47 static
+-rwxr-xr-x  1 kali kali  3644  4월  7일  23:47 stop_app.sh
+drwxr-xr-x  2 kali kali  4096  4월  7일  23:47 templates
+-rw-r--r--  1 kali kali 11598  4월  7일  23:47 tools.py
+drwxr-xr-x  2 kali kali  4096  4월  7일  23:47 wordlist
+-rw-r--r--  1 kali kali  6357  4월  7일  23:47 zap_client.py

@@ -69,6 +69,32 @@ function startTerminal() {
     termInitialized = true;
 }
 
+// ── 외부 코드에서 터미널에 명령어 전송 ──────────────────
+
+function termSend(command) {
+    if (!termInstance || !termWs) {
+        console.warn('[termSend] Terminal not initialized');
+        return false;
+    }
+
+    if (termWs.readyState !== WebSocket.OPEN) {
+        console.warn('[termSend] WebSocket not connected');
+        return false;
+    }
+
+    try {
+        // 명령어를 터미널에 표시
+        termInstance.write(command);
+        // WebSocket으로 전송
+        termWs.send(new TextEncoder().encode(command));
+        console.log('[termSend] Sent:', command.trim());
+        return true;
+    } catch (e) {
+        console.error('[termSend] Error:', e);
+        return false;
+    }
+}
+
 function _termConnect() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const wsUrl = `${proto}://${location.host}/api/terminal`;

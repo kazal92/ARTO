@@ -36,7 +36,8 @@ async def _ensure_session():
     # PTY 초기 사이즈 설정 (xterm.js가 접속 후 실제 크기로 업데이트함)
     _resize_pty(master_fd, 40, 150)
 
-    shell = os.environ.get("SHELL", "/bin/bash")
+    # zsh 우선 (/usr/bin/zsh), 없으면 환경변수 SHELL 사용
+    shell = "/usr/bin/zsh" if os.path.exists("/usr/bin/zsh") else os.environ.get("SHELL", "/bin/bash")
     proc = await asyncio.create_subprocess_exec(
         shell,
         stdin=slave_fd,

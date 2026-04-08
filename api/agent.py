@@ -1,9 +1,4 @@
-"""
-api/agent.py - AI 에이전트 점검 라우터
-POST /api/agent/run     - 에이전트 시작 (SSE 스트리밍)
-POST /api/agent/stop    - 에이전트 중단
-POST /api/agent/message - 진행 중 메시지 주입
-"""
+
 
 import os
 import json

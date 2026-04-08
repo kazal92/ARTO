@@ -479,13 +479,14 @@ async function selectProject(sId, targetSec = null) {
 
     let pName = sId;
     let pTarget = "";
+    let pInfo = null;
     try {
         const res = await fetch(`${API_BASE}/api/history/${sId}/json/project_info`);
         const data = await res.json();
         if (data.status === "success") {
-            const info = JSON.parse(data.content);
-            pName = info.project_name || sId;
-            pTarget = info.target || "";
+            pInfo = JSON.parse(data.content);
+            pName = pInfo.project_name || sId;
+            pTarget = pInfo.target || "";
         }
     } catch (e) {
         console.warn("Project Info 조회 실패:", e);
@@ -518,6 +519,89 @@ async function selectProject(sId, targetSec = null) {
         targetInput.removeAttribute('readonly');
         targetInput.style.background = '';
         if (typeof syncFfufUrl === 'function') syncFfufUrl(pTarget);
+    }
+
+    // project_info.json의 ai_config를 UI에 반영
+    try {
+        if (pInfo) {
+            const info = pInfo;
+            const aiCfg = info.ai_config || {};
+            console.log('[selectProject] Loading ai_config:', aiCfg);
+
+            if (aiCfg.type) {
+                const aiTypeEl = document.getElementById('aiType');
+                if (aiTypeEl) { aiTypeEl.value = aiCfg.type; localStorage.setItem('aiType', aiCfg.type); }
+                console.log('[selectProject] Set aiType to:', aiCfg.type);
+            }
+            if (aiCfg.model) {
+                const aiModelEl = document.getElementById('aiModel');
+                const aiModelSelect = document.getElementById('aiModelSelect');
+                const aiModelLmSelect = document.getElementById('aiModelLmSelect');
+                if (aiModelEl) { aiModelEl.value = aiCfg.model; }
+                if (aiModelSelect) { aiModelSelect.value = aiCfg.model; }
+                if (aiModelLmSelect) { aiModelLmSelect.value = aiCfg.model; }
+                localStorage.setItem('aiModel', aiCfg.model);
+                console.log('[selectProject] Set aiModel to:', aiCfg.model);
+            }
+            if (aiCfg.base_url) {
+                const aiUrlEl = document.getElementById('aiUrl');
+                if (aiUrlEl) { aiUrlEl.value = aiCfg.base_url; localStorage.setItem('aiUrl', aiCfg.base_url); }
+            }
+            if (aiCfg.api_key) {
+                const t = aiCfg.type || '';
+                if (t === 'gemini') { const el = document.getElementById('geminiApiKey'); if (el) { el.value = aiCfg.api_key; localStorage.setItem('geminiApiKey', aiCfg.api_key); } }
+                else if (t === 'claude') { const el = document.getElementById('claudeApiKey'); if (el) { el.value = aiCfg.api_key; localStorage.setItem('claudeApiKey', aiCfg.api_key); } }
+                else if (t === 'lmstudio') { const el = document.getElementById('lmstudioApiKey'); if (el) { el.value = aiCfg.api_key; localStorage.setItem('lmstudioApiKey', aiCfg.api_key); } }
+            }
+            if (aiCfg.custom_prompt) {
+                const el = document.getElementById('aiPromptCustom');
+                if (el) { el.value = aiCfg.custom_prompt; localStorage.setItem('aiPromptCustom', aiCfg.custom_prompt); }
+            }
+            if (aiCfg.max_endpoints_per_batch !== undefined) {
+                const el = document.getElementById('maxEndpointsPerBatch');
+                if (el) el.value = aiCfg.max_endpoints_per_batch;
+            }
+            // ffuf 설정 반영
+            if (info.ffuf_options) {
+                const el = document.getElementById('ffufOptions');
+                if (el) el.value = info.ffuf_options;
+            }
+            if (info.ffuf_wordlist) {
+                const el = document.getElementById('ffufWordlist');
+                if (el) el.value = info.ffuf_wordlist;
+            }
+            if (info.enable_zap_spider !== undefined) {
+                const el = document.getElementById('enableZapSpider');
+                if (el) el.checked = info.enable_zap_spider;
+            }
+            if (info.enable_ffuf !== undefined) {
+                const el = document.getElementById('enableFfuf');
+                if (el) el.checked = info.enable_ffuf;
+            }
+            if (info.enable_deep_recon !== undefined) {
+                const el = document.getElementById('enableDeepRecon');
+                if (el) el.checked = info.enable_deep_recon;
+            }
+            // 커스텀 헤더 반영
+            if (info.headers && Object.keys(info.headers).length > 0) {
+                const raw = Object.entries(info.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
+                const el = document.getElementById('customHeaders');
+                if (el) { el.value = raw; localStorage.setItem('customHeaders', raw); }
+            }
+            if (typeof toggleAiSettings === 'function') toggleAiSettings();
+
+            // Gemini인 경우 저장된 모델로 다시 설정 (fetchGeminiModels가 초기화할 수 있으므로)
+            if (aiCfg.type === 'gemini' && aiCfg.model) {
+                setTimeout(() => {
+                    if (typeof fetchGeminiModels === 'function') {
+                        console.log('[selectProject] Re-fetching Gemini models with target:', aiCfg.model);
+                        fetchGeminiModels(aiCfg.model);
+                    }
+                }, 200);
+            }
+        }
+    } catch (e) {
+        console.warn('ai_config 반영 실패:', e);
     }
 
     const breadcrumbText = document.getElementById('breadcrumbText');

@@ -213,6 +213,11 @@ async function loadSession(sessionId) {
             document.getElementById('scanStatusText').innerHTML = (lastProgress >= 100) ?
                 `<i class="fa-solid fa-check text-success me-2"></i>History Complete` :
                 `<i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Loaded History`;
+                
+            // 6. Agent Check logs
+            if (typeof replayAgentLogs === 'function') {
+                replayAgentLogs(logsJson.logs);
+            }
         }
     } catch (e) { console.warn("Logs load failed", e); }
 }

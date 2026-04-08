@@ -7,6 +7,7 @@
 let agentEventSource = null;
 let agentRunning = false;
 let agentFindingCount = 0;
+let agentReplaying = true;  // agent_start 이전 = 이전 로그 재전송 구간
 
 // ── 초기화 ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ async function startAgent() {
     const customHeaders = _collectCustomHeaders();
 
     agentRunning = true;
+    agentReplaying = true;
     agentFindingCount = 0;
     _updateAgentStatus('running');
     _updateFindingBadge(0);
@@ -114,7 +116,7 @@ async function startAgent() {
 
 async function stopAgent() {
     const sessionId = localStorage.getItem('currentSessionId');
-    if (!sessionId || !agentRunning) return;
+    if (!sessionId) return;
 
     try {
         await fetch(`${API_BASE}/api/agent/stop`, {
@@ -138,14 +140,29 @@ async function sendAgentMessage() {
     const msg = input.value.trim();
     if (!msg) return;
 
-    _agentAppend('user', msg);
-    input.value = '';
-    _agentResizeInput(input);
-
     if (!agentRunning) {
-        _agentAppend('system', '에이전트가 실행 중이지 않습니다. 먼저 에이전트를 시작하세요.');
+        _agentAppend('system', '🏃 에이전트를 재구동하며 이전 맥락을 로드합니다...');
+        input.value = '';
+        
+        // 1) 강제 시작
+        startAgent();
+        
+        // 2) 서버쪽 백그라운드 루프가 초기화될 시간을 1.5초 정도 기다렸다가 메시지 큐 전송
+        setTimeout(async () => {
+            _agentAppend('user', msg);
+            try {
+                await fetch(`${API_BASE}/api/agent/message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, message: msg })
+                });
+            } catch (e) { console.error('Resume message failed:', e); }
+        }, 1500);
         return;
     }
+
+    input.value = '';
+    _agentAppend('user', msg);
 
     try {
         const res = await fetch(`${API_BASE}/api/agent/message`, {
@@ -155,7 +172,7 @@ async function sendAgentMessage() {
         });
         const data = await res.json();
         if (data.status !== 'success') {
-            _agentAppend('system', `메시지 전달 실패: ${data.message}`);
+            _agentAppend('system', `⚠️ ${data.message}`);
         }
     } catch (e) {
         _agentAppend('system', `오류: ${e.message}`);
@@ -178,6 +195,7 @@ let _streamEl = null;
 function _handleAgentEvent(data) {
     switch (data.type) {
         case 'agent_start':
+            agentReplaying = false;
             break;
 
         case 'thinking_start':
@@ -231,6 +249,7 @@ function _handleAgentEvent(data) {
             break;
 
         case 'ai_card':
+            if (agentReplaying) break;
             agentFindingCount++;
             _updateFindingBadge(agentFindingCount);
             _agentAppend('finding', `취약점 발견: ${data.data?.title || '?'} [${data.data?.severity || '?'}]`);
@@ -250,6 +269,34 @@ function _handleAgentEvent(data) {
             agentRunning = false;
             _updateAgentStatus('done');
             break;
+    }
+}
+
+function replayAgentLogs(logs) {
+    if (typeof clearAgentOutput === 'function') clearAgentOutput();
+    if (!logs || !logs.length) return;
+    
+    agentReplaying = true; 
+    let hasAgentData = false;
+    let isComplete = false;
+    
+    logs.forEach(log => {
+        if (['chunk', 'thinking_start', 'thinking_chunk', 'tool_call', 'tool_result', 'ai_card', 'agent_start', 'scan_complete', 'user_message'].includes(log.type) 
+           || (log.type === 'log' && log.agent === 'Agent')) {
+            
+            // disable sound/UI badge updates during replay using simple hacks or let them be
+            _handleAgentEvent(log);
+            hasAgentData = true;
+            if (log.type === 'scan_complete') isComplete = true;
+        }
+    });
+    
+    agentReplaying = false;
+    
+    if (hasAgentData && !isComplete) {
+        // 백엔드에서 아직 실행 중일 수 있음!
+        agentRunning = true;
+        _updateAgentStatus('running');
     }
 }
 

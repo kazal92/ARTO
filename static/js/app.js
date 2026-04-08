@@ -45,6 +45,8 @@ function initRouter() {
             const sub = parts[3];
             if(sub === 'endpoints') targetSection = 'section-endpoints';
             else if(sub === 'vulns') targetSection = 'section-vulns';
+            else if(sub === 'agent') targetSection = 'section-agent';
+            else if(sub === 'terminal') targetSection = 'section-terminal';
             else targetSection = 'section-overview';
         } else if (parts.length === 3) {
             localStorage.setItem('currentSessionId', parts[2]);

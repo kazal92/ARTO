@@ -228,6 +228,14 @@ function openVerifyModal(index, editMode = false) {
                 <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Reproduction Steps</div>
                 <div class="p-3 rounded" style="background:var(--bg-hover);border:1px solid var(--border-color);font-size:0.88rem;white-space:pre-line;">${esc(card.steps) || 'N/A'}</div>
             </div>
+            <div class="mb-3">
+                <button class="btn btn-sm btn-outline-info" onclick="verifyVulnerabilityInTerminal(${index})" style="font-size:0.8rem;">
+                    <i class="fa-solid fa-terminal me-1"></i>웹 터미널에서 검증
+                </button>
+                <button class="btn btn-sm btn-outline-success ms-2" onclick="copyVulnSteps(${index})" style="font-size:0.8rem;">
+                    <i class="fa-solid fa-copy me-1"></i>재현 단계 복사
+                </button>
+            </div>
             <div class="mb-0">
                 <div class="text-muted text-uppercase mb-1" style="font-size:0.7rem;">Recommendation / Remediation</div>
                 <div class="p-3 rounded border-start border-3 border-success" style="background:rgba(34,197,94,0.05);font-size:0.88rem;">${typeof marked !== 'undefined' ? marked.parse(card.recommendation || 'N/A') : (card.recommendation || 'N/A')}</div>
@@ -329,7 +337,7 @@ function switchVulnTab(tabBtn, cardIndex, tabType) {
 function copyVulnJson(cardIndex) {
     const card = aiCardsData[cardIndex];
     if (!card) return;
-    
+
     const jsonStr = JSON.stringify(card, null, 2);
     navigator.clipboard.writeText(jsonStr).then(() => {
         const btn = event.target.closest('button');
@@ -342,6 +350,63 @@ function copyVulnJson(cardIndex) {
         }, 2000);
     }).catch(err => {
         console.error('JSON 복사 실패:', err);
+        alert('클립보드 복사에 실패했습니다.');
+    });
+}
+
+// ── 웹 터미널에서 취약점 검증 ─────────────────────────────
+
+function verifyVulnerabilityInTerminal(cardIndex) {
+    const card = aiCardsData[cardIndex];
+    if (!card) return;
+
+    // 재현 단계에서 curl 명령어 추출
+    const steps = (card.steps || '').trim();
+    const curlMatch = steps.match(/curl\s+[^\n]+/g);
+
+    if (!curlMatch || curlMatch.length === 0) {
+        alert('재현 단계에서 curl 명령어를 찾을 수 없습니다.\n\n수동으로 다음을 시도해보세요:\n' + steps);
+        return;
+    }
+
+    // 웹 터미널 탭으로 전환
+    switchSection('section-terminal');
+
+    // 웹 터미널이 준비될 때까지 대기
+    setTimeout(() => {
+        // 첫 번째 curl 명령어 실행
+        const curlCmd = curlMatch[0];
+        console.log('[verifyVulnerabilityInTerminal] Executing:', curlCmd);
+
+        // 터미널에 명령어 입력 (터미널 API 사용)
+        if (typeof termSend === 'function') {
+            termSend(curlCmd + '\n');
+            appendLog(`취약점 검증: ${card.title} @ ${card.target}`, 'System');
+        } else {
+            alert('웹 터미널을 초기화할 수 없습니다.\n\n수동으로 이 명령어를 실행해보세요:\n\n' + curlCmd);
+        }
+    }, 300);
+}
+
+function copyVulnSteps(cardIndex) {
+    const card = aiCardsData[cardIndex];
+    if (!card) {
+        alert('취약점 정보를 찾을 수 없습니다.');
+        return;
+    }
+
+    const steps = (card.steps || 'N/A').trim();
+    navigator.clipboard.writeText(steps).then(() => {
+        const btn = event.target.closest('button');
+        const origText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>복사됨';
+        btn.disabled = true;
+        setTimeout(() => {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }, 2000);
+    }).catch(err => {
+        console.error('재현 단계 복사 실패:', err);
         alert('클립보드 복사에 실패했습니다.');
     });
 }

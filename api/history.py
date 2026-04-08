@@ -25,6 +25,18 @@ class UpdateStatusRequest(BaseModel):
     status: str
 
 
+class SaveProjectInfoRequest(BaseModel):
+    project_name: str = ""
+    target: str = ""
+    headers: dict = {}
+    ai_config: dict = {}
+    ffuf_options: str = ""
+    ffuf_wordlist: str = ""
+    enable_zap_spider: bool = True
+    enable_ffuf: bool = True
+    enable_deep_recon: bool = True
+
+
 class SaveFindingsRequest(BaseModel):
     session_id: str
     findings: list
@@ -86,6 +98,19 @@ async def get_history_report(session_id: str):
     return {"status": "error", "message": "리포트를 찾을 수 없습니다."}
 
 
+@router.get("/api/history/{session_id}/agent_log")
+async def get_history_agent_log(session_id: str):
+    """특정 세션의 agent_log.md 내용을 반환"""
+    session_dir = find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "message": "세션을 찾을 수 없습니다."}
+    report_path = os.path.join(session_dir, "agent_log.md")
+    if os.path.exists(report_path):
+        with open(report_path, "r", encoding="utf-8", errors="ignore") as f:
+            return {"status": "success", "content": f.read()}
+    return {"status": "error", "message": "에이전트 로그를 찾을 수 없습니다."}
+
+
 @router.get("/api/history/{session_id}/raw/{tool_name}")
 async def get_history_raw_logs(session_id: str, tool_name: str):
     """특정 세션 내 개별 툴의 raw_output.txt 내용을 반환"""
@@ -118,6 +143,40 @@ async def get_history_json_logs(session_id: str, result_name: str):
             except (json.JSONDecodeError, UnicodeDecodeError):
                 return {"status": "error", "message": "JSON 파싱 에러"}
     return {"status": "error", "message": "데이터를 찾을 수 없습니다."}
+
+
+@router.put("/api/history/{session_id}/project_info")
+async def save_project_info(session_id: str, req: SaveProjectInfoRequest):
+    """프로젝트 설정 저장 (project_info.json 전체 업데이트)"""
+    session_dir = find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "message": "세션을 찾을 수 없습니다."}
+    info_file = os.path.join(session_dir, "project_info.json")
+    try:
+        existing = {}
+        if os.path.exists(info_file):
+            with open(info_file, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+
+        # 기존 필드 유지하면서 새 값으로 업데이트
+        updated = {
+            "project_name": req.project_name if req.project_name else existing.get("project_name", ""),
+            "target": req.target if req.target else existing.get("target", ""),
+            "project_type": existing.get("project_type", "scan"),  # 기존 type 유지
+            "headers": req.headers if req.headers else existing.get("headers", {}),
+            "ai_config": req.ai_config if req.ai_config else existing.get("ai_config", {}),
+            "ffuf_options": req.ffuf_options if req.ffuf_options else existing.get("ffuf_options", ""),
+            "ffuf_wordlist": req.ffuf_wordlist if req.ffuf_wordlist else existing.get("ffuf_wordlist", ""),
+            "enable_zap_spider": req.enable_zap_spider,
+            "enable_ffuf": req.enable_ffuf,
+            "enable_deep_recon": req.enable_deep_recon,
+        }
+
+        with open(info_file, "w", encoding="utf-8") as f:
+            json.dump(updated, f, ensure_ascii=False, indent=2)
+        return {"status": "success", "message": "프로젝트 정보가 저장되었습니다."}
+    except Exception as e:
+        return {"status": "error", "message": f"저장 실패: {e}"}
 
 
 @router.put("/api/history/{session_id}/rename")

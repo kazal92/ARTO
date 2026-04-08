@@ -178,6 +178,75 @@ function clearAiSettingsCache() {
     alert('AI 설정 캐시가 초기화되었습니다.');
 }
 
+async function saveProjectInfo() {
+    const sessionId = (typeof currentProject !== 'undefined' && currentProject?.id)
+        || localStorage.getItem('currentSessionId') || '';
+    if (!sessionId) return alert('저장할 프로젝트가 선택되지 않았습니다.');
+
+    const aiType = document.getElementById('aiType')?.value || 'gemini';
+    let apiKey = '';
+    if (aiType === 'gemini') apiKey = document.getElementById('geminiApiKey')?.value || '';
+    else if (aiType === 'claude') apiKey = document.getElementById('claudeApiKey')?.value || '';
+    else if (aiType === 'lmstudio') apiKey = document.getElementById('lmstudioApiKey')?.value || '';
+    else if (aiType === 'vertex') apiKey = document.getElementById('vertexApiKey')?.value || '';
+
+    const headersRaw = document.getElementById('customHeaders')?.value || '';
+    const headers = {};
+    if (headersRaw.trim()) {
+        headersRaw.split('\n').forEach(line => {
+            const idx = line.indexOf(':');
+            if (idx > 0) headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+        });
+    }
+
+    const aiModel = document.getElementById('aiModel')?.value || (aiType === 'gemini' ? 'gemini-2.5-flash' : 'claude-sonnet-4-6');
+    const aiUrl = document.getElementById('aiUrl')?.value || '';
+    const customPrompt = document.getElementById('aiPromptCustom')?.value?.trim() || '';
+
+    const payload = {
+        project_name: (typeof currentProject !== 'undefined' && currentProject?.name) || '',
+        target: document.getElementById('targetUrl')?.value || '',
+        headers: headers,
+        ai_config: {
+            type: aiType,
+            api_key: apiKey,
+            base_url: aiUrl,
+            model: aiModel,
+            max_endpoints_per_batch: parseInt(document.getElementById('maxEndpointsPerBatch')?.value || '0') || 0,
+            custom_prompt: customPrompt
+        },
+        ffuf_options: document.getElementById('ffufOptions')?.value || '',
+        ffuf_wordlist: document.getElementById('ffufWordlist')?.value || '',
+        enable_zap_spider: document.getElementById('enableZapSpider')?.checked ?? true,
+        enable_ffuf: document.getElementById('enableFfuf')?.checked ?? true,
+        enable_deep_recon: document.getElementById('enableDeepRecon')?.checked ?? true
+    };
+
+    console.log('[saveProjectInfo] sessionId:', sessionId);
+    console.log('[saveProjectInfo] payload:', payload);
+
+    try {
+        const res = await fetch(`${API_BASE}/api/history/${sessionId}/project_info`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        console.log('[saveProjectInfo] response status:', res.status);
+        const data = await res.json();
+        console.log('[saveProjectInfo] response data:', data);
+
+        if (res.ok && data.status === 'success') {
+            if (typeof appendLog === 'function') appendLog('프로젝트 정보가 저장되었습니다.', 'System');
+            alert('✓ 프로젝트 정보가 저장되었습니다.\n(새로고침 후 설정이 자동 로드됩니다)');
+        } else {
+            alert('저장 실패: ' + (data.message || '알 수 없는 오류'));
+        }
+    } catch (e) {
+        console.error('[saveProjectInfo] error:', e);
+        alert('저장 중 오류: ' + e.message);
+    }
+}
+
 async function toggleProxy() {
     localStorage.setItem('proxyEnabled', document.getElementById('proxyEnabled').checked);
 }
@@ -208,14 +277,14 @@ async function clearZapHistory() {
 
 // ── Gemini 모델 목록 가져오기 ────────────────────────────
 
-async function fetchGeminiModels() {
+async function fetchGeminiModels(targetModel = null) {
     const apiKey = document.getElementById('geminiApiKey')?.value?.trim();
     const modelSelect = document.getElementById('aiModelSelect');
+    const aiModel = document.getElementById('aiModel');
     if (!modelSelect) return;
 
     if (!apiKey) {
         modelSelect.innerHTML = '<option value="" disabled selected>올바른 API Key를 입력해주세요</option>';
-        const aiModel = document.getElementById('aiModel');
         if (aiModel) aiModel.value = '';
         return;
     }
@@ -243,14 +312,16 @@ async function fetchGeminiModels() {
             return;
         }
 
-        const prev = modelSelect.value;
+        // targetModel 또는 현재 선택값 우선, 없으면 첫 번째 모델
+        const selectedModel = targetModel || modelSelect.value || generateModels[0];
         modelSelect.innerHTML = generateModels
-            .map(m => `<option value="${m}"${m === prev ? ' selected' : ''}>${m}</option>`)
+            .map(m => `<option value="${m}"${m === selectedModel ? ' selected' : ''}>${m}</option>`)
             .join('');
 
-        const aiModel = document.getElementById('aiModel');
         if (aiModel) aiModel.value = modelSelect.value;
+        console.log('[fetchGeminiModels] Set model to:', modelSelect.value);
     } catch (e) {
+        console.error('[fetchGeminiModels] Error:', e);
         modelSelect.innerHTML = '<option value="" disabled selected>올바른 API Key를 입력해주세요</option>';
     }
 }
