@@ -12,6 +12,7 @@ from core.session import find_session_dir
 from core.logging import stream_log, stream_custom
 from core.cancellation import is_cancelled, mark_cancelled, mark_active, mark_inactive, is_active
 from agents.pentest_agent import run_pentest_agent, inject_user_message
+from agents.playwright_agent import run_playwright_agent
 
 router = APIRouter()
 
@@ -129,3 +130,74 @@ async def agent_message(req: AgentMessageRequest):
 
     inject_user_message(session_dir, req.message)
     return {"status": "success", "message": "메시지가 에이전트에 전달되었습니다."}
+
+
+# ── Playwright 에이전트 ───────────────────────────────────────────────────────
+
+@router.post("/api/playwright/run")
+async def playwright_run(req: AgentRunRequest):
+    """Playwright 에이전트 시작 — SSE 스트리밍"""
+    session_dir = find_session_dir(req.session_id)
+    if not session_dir:
+        return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
+
+    log_file = os.path.join(session_dir, "scan_log.jsonl")
+
+    async def event_generator():
+        sent_lines = 0
+
+        yield f'data: {{"type": "agent_start", "session_id": "{req.session_id}"}}\n\n'
+
+        if not is_active(session_dir):
+            await mark_active(session_dir)
+
+            async def run_task():
+                try:
+                    await run_playwright_agent(
+                        target=req.target,
+                        session_dir=session_dir,
+                        ai_config=req.ai_config,
+                        custom_headers=req.custom_headers,
+                    )
+                except Exception as e:
+                    stream_log(session_dir, f"Playwright 오류: {str(e)}", "Agent")
+                    stream_custom(session_dir, {"type": "scan_complete", "data": []})
+                finally:
+                    await mark_inactive(session_dir)
+
+            asyncio.create_task(run_task())
+
+        timeout_count = 0
+        while timeout_count < 7200:
+            if os.path.exists(log_file):
+                with open(log_file, "r", encoding="utf-8") as f:
+                    all_lines = f.readlines()
+
+                if len(all_lines) > sent_lines:
+                    for idx in range(sent_lines, len(all_lines)):
+                        line = all_lines[idx].strip()
+                        if line:
+                            yield f"data: {line}\n\n"
+                            sent_lines += 1
+                            if "scan_complete" in line:
+                                return
+
+            if not is_active(session_dir):
+                await asyncio.sleep(2)
+                break
+
+            await asyncio.sleep(0.5)
+            timeout_count += 1
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@router.post("/api/playwright/stop")
+async def playwright_stop(req: AgentStopRequest):
+    """Playwright 에이전트 중단"""
+    session_dir = find_session_dir(req.session_id)
+    if not session_dir:
+        return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
+    await mark_cancelled(session_dir)
+    stream_log(session_dir, "Playwright 에이전트 중단 요청", "Agent")
+    return {"status": "success"}

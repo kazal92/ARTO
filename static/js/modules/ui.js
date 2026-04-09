@@ -23,6 +23,7 @@ function switchSection(sectionId) {
             'section-settings': '<i class="fa-solid fa-gear text-secondary me-1"></i> 환경 설정 (AI / 프록시)',
             'section-precheck': '<i class="fa-solid fa-bolt text-info me-1"></i> 사전 점검 도구 (URL Alive Check)',
             'section-agent': '<i class="fa-solid fa-robot me-1" style="color:#a78bfa;"></i> AI 에이전트 점검',
+            'section-playwright': '<i class="fa-brands fa-chrome me-1" style="color:#34d399;"></i> Playwright 브라우저 에이전트',
             'section-terminal': '<i class="fa-solid fa-terminal me-1" style="color:#34d399;"></i> 웹 터미널',
         };
         if (labels[sectionId]) breadcrumbText.innerHTML = labels[sectionId];
