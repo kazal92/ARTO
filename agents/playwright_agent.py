@@ -12,11 +12,9 @@ import re
 import json
 import base64
 import asyncio
+import traceback
 from pathlib import Path
 from typing import Optional
-
-from core.logging import stream_log, stream_custom
-from core.cancellation import is_cancelled
 
 # ── 시스템 프롬프트 ───────────────────────────────────────────────────────────
 
@@ -163,10 +161,21 @@ def _parse_json_input(inp: str) -> Optional[dict]:
 
 # ── 브라우저 액션 실행기 ──────────────────────────────────────────────────────
 
+def _pw_write(log_file: str, obj: dict):
+    """전용 로그 파일에 JSON 라인 추가"""
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+
+def _pw_log(log_file: str, message: str):
+    _pw_write(log_file, {"type": "log", "message": message})
+
+
 class BrowserController:
-    def __init__(self, page, session_dir: str):
+    def __init__(self, page, session_dir: str, log_file: str):
         self.page = page
         self.session_dir = session_dir
+        self.log_file = log_file
 
     async def execute(self, action: str, inp: str) -> dict:
         """액션 실행 후 결과 반환"""
@@ -333,7 +342,7 @@ class BrowserController:
         with open(findings_path, "w", encoding="utf-8") as f:
             json.dump(existing, f, ensure_ascii=False, indent=2)
 
-        stream_custom(self.session_dir, {"type": "ai_card", "data": finding})
+        _pw_write(self.log_file, {"type": "ai_card", "data": finding})
         return {
             "result": f"✅ 취약점 보고 완료: {finding.get('title')} [{finding.get('severity')}]",
             "screenshot": None
@@ -347,12 +356,23 @@ async def run_playwright_agent(
     session_dir: str,
     ai_config: dict,
     custom_headers: dict = None,
+    log_file: str = None,
+    cancel_flag: dict = None,
+    session_id: str = None,
 ) -> None:
+    if log_file is None:
+        log_file = os.path.join(session_dir, "playwright_log.jsonl")
+
+    def cancelled():
+        if cancel_flag and session_id:
+            return cancel_flag.get(session_id, False)
+        return False
+
     try:
         from playwright.async_api import async_playwright
     except ImportError:
-        stream_log(session_dir, "❌ Playwright가 설치되지 않았습니다. pip install playwright && playwright install chromium", "Agent")
-        stream_custom(session_dir, {"type": "scan_complete", "data": []})
+        _pw_log(log_file, "❌ Playwright가 설치되지 않았습니다. pip install playwright && playwright install chromium")
+        _pw_write(log_file, {"type": "scan_complete", "data": []})
         return
 
     ai_type = ai_config.get("type", "gemini")
@@ -360,9 +380,9 @@ async def run_playwright_agent(
     base_url = ai_config.get("base_url", "")
     model = ai_config.get("model", "")
 
-    stream_log(session_dir, f"🎭 Playwright 에이전트 시작", "Agent")
-    stream_log(session_dir, f"🤖 AI 엔진: {ai_type.upper()} / {model}", "Agent")
-    stream_log(session_dir, f"🎯 대상: {target}", "Agent")
+    _pw_log(log_file, f"🎭 Playwright 에이전트 시작")
+    _pw_log(log_file, f"🤖 AI 엔진: {ai_type.upper()} / {model}")
+    _pw_log(log_file, f"🎯 대상: {target}")
 
     try:
         from openai import AsyncOpenAI
@@ -385,19 +405,21 @@ async def run_playwright_agent(
                 extra_http_headers=custom_headers or {}
             )
             page = await context.new_page()
-            ctrl = BrowserController(page, session_dir)
+            ctrl = BrowserController(page, session_dir, log_file)
 
             conversation = []
             max_iterations = 50
             iteration = 0
 
-            # 초기 스크린샷
-            await page.goto(target, wait_until="domcontentloaded", timeout=15000)
+            # 초기 페이지 로드
+            _pw_log(log_file, f"브라우저에서 {target} 로딩 중...")
+            await page.goto(target, wait_until="domcontentloaded", timeout=20000)
             await asyncio.sleep(1)
             ss_result = await ctrl._screenshot()
+            if ss_result.get("screenshot"):
+                _pw_write(log_file, {"type": "playwright_screenshot", "data": ss_result["screenshot"]})
             initial_html = await ctrl._get_html()
 
-            # 첫 메시지
             user_content = (
                 f"대상: {target}\n\n"
                 f"## 현재 페이지 HTML (주요 부분)\n{initial_html['result']}\n\n"
@@ -405,23 +427,26 @@ async def run_playwright_agent(
             )
 
             while iteration < max_iterations:
-                if is_cancelled(session_dir):
-                    stream_log(session_dir, "에이전트가 중단되었습니다.", "Agent")
+                if cancelled():
+                    _pw_log(log_file, "에이전트가 중단되었습니다.")
                     break
 
                 iteration += 1
+                _pw_log(log_file, f"── 반복 {iteration} / {max_iterations} ──")
 
                 # AI 호출
                 try:
                     if claude_client:
-                        conversation_msgs = [{"role": "user", "content": user_content}] if iteration == 1 else conversation
+                        if iteration == 1:
+                            conversation = [{"role": "user", "content": user_content}]
                         response = await claude_client.messages.create(
                             model=model or "claude-sonnet-4-6",
                             system=SYSTEM_PROMPT,
-                            messages=conversation_msgs if iteration > 1 else [{"role": "user", "content": user_content}],
+                            messages=conversation,
                             max_tokens=2048,
                         )
                         ai_text = response.content[0].text
+                        conversation.append({"role": "assistant", "content": ai_text})
                     else:
                         if iteration == 1:
                             conversation = [
@@ -438,22 +463,26 @@ async def run_playwright_agent(
                         conversation.append({"role": "assistant", "content": ai_text})
 
                 except Exception as e:
-                    stream_log(session_dir, f"AI 호출 오류: {str(e)}", "Agent")
+                    _pw_log(log_file, f"AI 호출 오류: {str(e)}")
                     break
 
                 # ReAct 파싱
                 thought, action, inp = _parse_react_response(ai_text)
 
                 if thought:
-                    stream_custom(session_dir, {"type": "thinking_chunk", "content": thought})
-                    stream_custom(session_dir, {"type": "thinking_start"})
+                    _pw_write(log_file, {"type": "thinking_start"})
+                    _pw_write(log_file, {"type": "thinking_chunk", "content": thought})
 
                 if not action:
-                    stream_log(session_dir, f"Action 파싱 실패. 응답: {ai_text[:200]}", "Agent")
-                    break
+                    _pw_log(log_file, f"Action 파싱 실패. 응답:\n{ai_text[:300]}")
+                    # 다음 턴에 재시도
+                    next_content = "응답 형식이 맞지 않습니다. 반드시 Thought:/Action:/Input: 형식으로 응답하세요."
+                    conversation.append({"role": "user", "content": next_content})
+                    user_content = next_content
+                    continue
 
                 # 액션 UI 표시
-                stream_custom(session_dir, {
+                _pw_write(log_file, {
                     "type": "tool_call",
                     "tool_name": action,
                     "tool_input": {"input": inp[:200] if inp else ""}
@@ -464,45 +493,42 @@ async def run_playwright_agent(
                 result_text = result.get("result", "")
                 screenshot_b64 = result.get("screenshot")
 
-                # 스크린샷이 있으면 UI에 전송
+                # 스크린샷 전송
                 if screenshot_b64:
-                    stream_custom(session_dir, {
-                        "type": "playwright_screenshot",
-                        "data": screenshot_b64
-                    })
+                    _pw_write(log_file, {"type": "playwright_screenshot", "data": screenshot_b64})
+                    # URL 바 업데이트
+                    _pw_write(log_file, {"type": "tool_result", "result": f"현재 URL: {page.url}"})
 
-                # 결과 UI 표시
-                stream_custom(session_dir, {
+                # 결과 표시
+                _pw_write(log_file, {
                     "type": "tool_result",
-                    "result": result_text[:500] if len(result_text) > 500 else result_text
+                    "result": result_text[:800] if len(result_text) > 800 else result_text
                 })
 
                 # 완료 처리
                 if result.get("done"):
                     break
 
-                # 다음 AI 메시지 구성
+                # 다음 메시지 구성
                 next_content = f"Action 결과: {result_text}"
                 if screenshot_b64:
-                    next_content += "\n(스크린샷이 업데이트되었습니다. 현재 페이지 상태를 참고하세요.)"
+                    next_content += f"\n현재 URL: {page.url}\n(스크린샷이 업데이트되었습니다.)"
 
-                if claude_client:
-                    conversation.append({"role": "assistant", "content": ai_text})
-                    conversation.append({"role": "user", "content": next_content})
-                    # 컨텍스트 너무 길면 앞부분 잘라냄
-                    if len(conversation) > 40:
+                conversation.append({"role": "user", "content": next_content})
+                # 컨텍스트 길이 제한
+                if len(conversation) > 40:
+                    if claude_client:
+                        conversation = conversation[:1] + conversation[-38:]
+                    else:
                         conversation = conversation[:2] + conversation[-38:]
-                else:
-                    conversation.append({"role": "user", "content": next_content})
-                    if len(conversation) > 40:
-                        conversation = [conversation[0]] + conversation[-38:]
 
                 user_content = next_content
 
             await browser.close()
-            stream_log(session_dir, f"🎭 Playwright 에이전트 점검 완료 ({iteration}회 반복)", "Agent")
+            _pw_log(log_file, f"🎭 Playwright 에이전트 점검 완료 ({iteration}회 반복)")
 
     except Exception as e:
-        stream_log(session_dir, f"Playwright 에이전트 오류: {str(e)}", "Agent")
+        err = traceback.format_exc()
+        _pw_log(log_file, f"Playwright 에이전트 오류: {str(e)}\n{err}")
 
-    stream_custom(session_dir, {"type": "scan_complete", "data": []})
+    _pw_write(log_file, {"type": "scan_complete", "data": []})

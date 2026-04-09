@@ -134,38 +134,49 @@ async def agent_message(req: AgentMessageRequest):
 
 # ── Playwright 에이전트 ───────────────────────────────────────────────────────
 
+PW_CANCEL_FLAG = {}  # session_id → True
+
+
 @router.post("/api/playwright/run")
 async def playwright_run(req: AgentRunRequest):
-    """Playwright 에이전트 시작 — SSE 스트리밍"""
+    """Playwright 에이전트 시작 — SSE 스트리밍 (전용 로그 파일 사용)"""
     session_dir = find_session_dir(req.session_id)
     if not session_dir:
         return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
 
-    log_file = os.path.join(session_dir, "scan_log.jsonl")
+    # 전용 로그 파일 (scan_log.jsonl 과 분리)
+    log_file = os.path.join(session_dir, "playwright_log.jsonl")
+
+    # 이전 로그 초기화
+    if os.path.exists(log_file):
+        os.remove(log_file)
+
+    PW_CANCEL_FLAG[req.session_id] = False
 
     async def event_generator():
         sent_lines = 0
 
         yield f'data: {{"type": "agent_start", "session_id": "{req.session_id}"}}\n\n'
 
-        if not is_active(session_dir):
-            await mark_active(session_dir)
+        async def run_task():
+            try:
+                await run_playwright_agent(
+                    target=req.target,
+                    session_dir=session_dir,
+                    ai_config=req.ai_config,
+                    custom_headers=req.custom_headers,
+                    log_file=log_file,
+                    cancel_flag=PW_CANCEL_FLAG,
+                    session_id=req.session_id,
+                )
+            except Exception as e:
+                import traceback, json as _j
+                err = traceback.format_exc()
+                with open(log_file, "a") as f:
+                    f.write(_j.dumps({"type": "log", "message": f"오류: {str(e)}\n{err}"}) + "\n")
+                    f.write(_j.dumps({"type": "scan_complete", "data": []}) + "\n")
 
-            async def run_task():
-                try:
-                    await run_playwright_agent(
-                        target=req.target,
-                        session_dir=session_dir,
-                        ai_config=req.ai_config,
-                        custom_headers=req.custom_headers,
-                    )
-                except Exception as e:
-                    stream_log(session_dir, f"Playwright 오류: {str(e)}", "Agent")
-                    stream_custom(session_dir, {"type": "scan_complete", "data": []})
-                finally:
-                    await mark_inactive(session_dir)
-
-            asyncio.create_task(run_task())
+        asyncio.create_task(run_task())
 
         timeout_count = 0
         while timeout_count < 7200:
@@ -182,8 +193,7 @@ async def playwright_run(req: AgentRunRequest):
                             if "scan_complete" in line:
                                 return
 
-            if not is_active(session_dir):
-                await asyncio.sleep(2)
+            if PW_CANCEL_FLAG.get(req.session_id):
                 break
 
             await asyncio.sleep(0.5)
@@ -195,9 +205,5 @@ async def playwright_run(req: AgentRunRequest):
 @router.post("/api/playwright/stop")
 async def playwright_stop(req: AgentStopRequest):
     """Playwright 에이전트 중단"""
-    session_dir = find_session_dir(req.session_id)
-    if not session_dir:
-        return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
-    await mark_cancelled(session_dir)
-    stream_log(session_dir, "Playwright 에이전트 중단 요청", "Agent")
+    PW_CANCEL_FLAG[req.session_id] = True
     return {"status": "success"}
