@@ -50,8 +50,11 @@ async def auto_target(session_id: str):
         res_raw = ep.get("response_raw", "")
         if not req_raw:
             continue
-        status = str(ep.get("status", ""))
-        if status in ("400", "404", "405"):
+        try:
+            status_code = int(ep.get("status", 0) or 0)
+        except (ValueError, TypeError):
+            status_code = 0
+        if status_code in (400, 404, 405):
             continue
         minimized_req = minimize_request_raw(req_raw) if ENABLE_REQUEST_COMPRESSION else req_raw
         req_parts = req_raw.split("\n\n", 1)
