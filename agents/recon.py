@@ -44,10 +44,17 @@ async def run_recon_agent(
     ffuf_wordlist: str = ''
 ):
     yield stream_log(session_dir, f'정찰 시작: {target_url}', 'Recon', 5)
-    
-    # 초기 설정 로그
+
     if headers:
         yield stream_log(session_dir, f'[Recon] 커스텀 헤더 {len(headers)}개 설정됨: {", ".join(headers.keys())}', 'Recon', 5)
+
+    if not enable_zap and not enable_ffuf:
+        yield stream_log(session_dir, '[Recon] ZAP/FFuf 비활성화 — 히스토리 수집을 건너뜁니다.', 'Recon', 90)
+        recon_results = {'target': target_url, 'endpoints': []}
+        yield stream_log(session_dir, '[Recon] 정찰 단계가 완료되었습니다. (엔드포인트 0개)', 'Recon', 100)
+        save_tool_result(session_dir, 'recon_map', recon_results)
+        yield stream_custom(session_dir, {'type': 'recon_result', 'data': recon_results})
+        return
 
     zap = ZAPClient()
     ffuf_urls = []
@@ -133,15 +140,6 @@ async def run_recon_agent(
 
     endpoints = []
     seen_keys = set()
-
-    # ZAP와 FFuf 모두 비활성화된 경우 ZAP 히스토리 수집 생략 (120초 타임아웃 방지)
-    if not enable_zap and not enable_ffuf:
-        yield stream_log(session_dir, '[Recon] ZAP/FFuf 비활성화 — 히스토리 수집을 건너뜁니다.', 'Recon', 90)
-        recon_results = {'target': target_url, 'endpoints': []}
-        yield stream_log(session_dir, '[Recon] 정찰 단계가 완료되었습니다. (엔드포인트 0개)', 'Recon', 100)
-        save_tool_result(session_dir, 'recon_map', recon_results)
-        yield stream_custom(session_dir, {'type': 'recon_result', 'data': recon_results})
-        return
 
     try:
         parsed_origin = urllib.parse.urlparse(target_url)

@@ -10,7 +10,7 @@ from agents.analysis import run_analysis_agent
 from core.session import find_session_dir, save_tool_result
 from core.logging import stream_log, stream_custom
 from core.cancellation import mark_active, mark_inactive, is_active
-from core.sse import stream_log_file
+from core.sse import stream_log_file, count_log_lines
 from tools import minimize_request_raw, extract_relevant_snippet
 from config import ENABLE_REQUEST_COMPRESSION
 
@@ -220,11 +220,7 @@ async def run_ai(session_id: str, request: Request):
         return JSONResponse(status_code=400, content={"status": "error", "message": "AI 분석 대상이 없습니다. 먼저 타겟을 지정하세요."})
 
     log_file = os.path.join(session_dir, "scan_log.jsonl")
-
-    initial_lines = 0
-    if os.path.exists(log_file):
-        with open(log_file, "r", encoding="utf-8") as f:
-            initial_lines = sum(1 for _ in f)
+    initial_lines = count_log_lines(log_file)
 
     async def event_generator():
         await mark_active(session_dir)

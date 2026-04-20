@@ -2,18 +2,16 @@ import os
 import asyncio
 
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 
 from tools import run_nmap, stop_all_processes
 from core.session import find_session_dir, save_tool_result
 from core.logging import stream_log, stream_custom
-from core.cancellation import mark_active, mark_inactive, mark_cancelled
-from core.sse import stream_log_file
+from core.cancellation import mark_inactive, mark_cancelled, is_cancelled
+from api.common import make_tool_stream
 
 router = APIRouter()
 
-_NMAP_SESSION: dict = {"stop_event": None, "session_id": None}
 _nmap_running_sessions: set = set()
 
 
@@ -41,86 +39,64 @@ async def nmap_run(req: NmapRequest):
     if not session_dir:
         return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
 
-    # Atomic guard (no await between check and add)
     if session_dir in _nmap_running_sessions:
         return {"status": "error", "message": "이미 실행 중인 Nmap 세션입니다."}
     _nmap_running_sessions.add(session_dir)
 
     log_file = os.path.join(session_dir, "scan_log.jsonl")
 
-    initial_lines = 0
-    if os.path.exists(log_file):
-        with open(log_file, "r", encoding="utf-8") as f:
-            initial_lines = sum(1 for _ in f)
+    async def run_task():
+        findings = []
+        try:
+            stream_log(session_dir, f"Nmap 스캔 시작: {req.target_url}", "Nmap", 0)
+            stream_log(session_dir, f"옵션: {req.nmap_options}", "Nmap", 5)
 
-    async def event_generator():
-        await mark_active(session_dir)
-        _NMAP_SESSION["session_id"] = req.session_id
-        _NMAP_SESSION["stop_event"] = asyncio.Event()
+            async for update in run_nmap(req.target_url, session_dir, nmap_options=req.nmap_options):
+                if is_cancelled(session_dir):
+                    stream_log(session_dir, "Nmap 스캔이 사용자에 의해 중단되었습니다.", "Nmap")
+                    break
 
-        async def run_task():
-            findings = []
-            try:
-                stream_log(session_dir, f"Nmap 스캔 시작: {req.target_url}", "Nmap", 0)
-                stream_log(session_dir, f"옵션: {req.nmap_options}", "Nmap", 5)
+                utype = update.get("type")
+                if utype == "progress":
+                    stream_log(session_dir, update["msg"], "Nmap", update.get("progress"))
+                elif utype == "command":
+                    stream_log(session_dir, update["cmd"], "Command")
+                elif utype == "finding":
+                    finding = update["data"]
+                    findings.append(finding)
+                    stream_custom(session_dir, {"type": "nmap_finding", "data": finding})
 
-                async for update in run_nmap(
-                    req.target_url,
-                    session_dir,
-                    nmap_options=req.nmap_options,
-                ):
-                    if _NMAP_SESSION.get("stop_event") and _NMAP_SESSION["stop_event"].is_set():
-                        stream_log(session_dir, "Nmap 스캔이 사용자에 의해 중단되었습니다.", "Nmap")
-                        break
+            save_tool_result(session_dir, "nmap_findings", findings)
 
-                    utype = update.get("type")
-                    if utype == "progress":
-                        stream_log(session_dir, update["msg"], "Nmap", update.get("progress"))
-                    elif utype == "command":
-                        stream_log(session_dir, update["cmd"], "Command")
-                    elif utype == "finding":
-                        finding = update["data"]
-                        findings.append(finding)
-                        stream_custom(session_dir, {"type": "nmap_finding", "data": finding})
-
-                # 결과 유무 관계없이 항상 저장
-                save_tool_result(session_dir, "nmap_findings", findings)
-
-                # 사람이 읽기 좋은 텍스트 리포트 생성
-                tool_dir = os.path.join(session_dir, "nmap")
-                os.makedirs(tool_dir, exist_ok=True)
-                report_path = os.path.join(tool_dir, "report.txt")
-                with open(report_path, "w", encoding="utf-8") as rf:
-                    rf.write(f"Nmap Scan Report — {req.target_url}\n")
-                    rf.write(f"Options: {req.nmap_options}\n")
-                    rf.write("=" * 60 + "\n")
-                    if findings:
-                        rf.write(f"{'PORT':<10} {'PROTO':<6} {'SERVICE':<16} {'PRODUCT/VERSION'}\n")
-                        rf.write("-" * 60 + "\n")
-                        for f in findings:
-                            ver = " ".join(filter(None, [f.get("product",""), f.get("version",""), f.get("extrainfo","")]))
-                            rf.write(f"{str(f['port']):<10} {f.get('protocol',''):<6} {f.get('service',''):<16} {ver}\n")
-                    else:
-                        rf.write("열린 포트 없음\n")
-
+            tool_dir = os.path.join(session_dir, "nmap")
+            os.makedirs(tool_dir, exist_ok=True)
+            report_path = os.path.join(tool_dir, "report.txt")
+            with open(report_path, "w", encoding="utf-8") as rf:
+                rf.write(f"Nmap Scan Report — {req.target_url}\n")
+                rf.write(f"Options: {req.nmap_options}\n")
+                rf.write("=" * 60 + "\n")
                 if findings:
-                    stream_log(session_dir, f"Nmap 결과 {len(findings)}개 포트 저장 완료 → nmap/report.txt", "Nmap", 100)
+                    rf.write(f"{'PORT':<10} {'PROTO':<6} {'SERVICE':<16} {'PRODUCT/VERSION'}\n")
+                    rf.write("-" * 60 + "\n")
+                    for f in findings:
+                        ver = " ".join(filter(None, [f.get("product", ""), f.get("version", ""), f.get("extrainfo", "")]))
+                        rf.write(f"{str(f['port']):<10} {f.get('protocol', ''):<6} {f.get('service', ''):<16} {ver}\n")
                 else:
-                    stream_log(session_dir, "Nmap 스캔 완료: 열린 포트 없음", "Nmap", 100)
+                    rf.write("열린 포트 없음\n")
 
-            except Exception as e:
-                stream_log(session_dir, f"Nmap 오류: {str(e)}", "Nmap")
-            finally:
-                stream_custom(session_dir, {"type": "nmap_complete", "data": findings})
-                await mark_inactive(session_dir)
-                _nmap_running_sessions.discard(session_dir)
+            if findings:
+                stream_log(session_dir, f"Nmap 결과 {len(findings)}개 포트 저장 완료 → nmap/report.txt", "Nmap", 100)
+            else:
+                stream_log(session_dir, "Nmap 스캔 완료: 열린 포트 없음", "Nmap", 100)
 
-        asyncio.create_task(run_task())
+        except Exception as e:
+            stream_log(session_dir, f"Nmap 오류: {str(e)}", "Nmap")
+        finally:
+            stream_custom(session_dir, {"type": "nmap_complete", "data": findings})
+            await mark_inactive(session_dir)
+            _nmap_running_sessions.discard(session_dir)
 
-        async for event in stream_log_file(session_dir, log_file, start_line=initial_lines, complete_marker="nmap_complete"):
-            yield event
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return make_tool_stream(session_dir, log_file, run_task, "nmap_complete")
 
 
 @router.post("/api/nmap/stop")
@@ -129,9 +105,6 @@ async def nmap_stop(req: NmapStopRequest):
     session_dir = find_session_dir(req.session_id)
     if not session_dir:
         return {"status": "error", "message": "유효하지 않은 세션 ID입니다."}
-
-    if _NMAP_SESSION.get("stop_event"):
-        _NMAP_SESSION["stop_event"].set()
 
     await mark_cancelled(session_dir)
     _nmap_running_sessions.discard(session_dir)

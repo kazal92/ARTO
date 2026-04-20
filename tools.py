@@ -9,35 +9,38 @@ from typing import List, Dict, Optional, Union
 
 from zap_client import ZAPClient
 
-PROXY_URL = None
-_current_proc: Optional[subprocess.Popen] = None
-_async_procs = set()
 
+class _ProcessManager:
+    """실행 중인 비동기 서브프로세스를 추적하고 일괄 종료합니다."""
 
-def stop_all_processes():
-    """현재 실행 중인 모든 서브프로세스를 강제 종료합니다."""
-    global _current_proc, _async_procs
-    if _current_proc and _current_proc.poll() is None:
-        try:
-            os.killpg(os.getpgid(_current_proc.pid), signal.SIGTERM)
-        except Exception as e:
-            print(f"프로세스 종료 중 에러: {e}")
+    def __init__(self):
+        self._procs: set = set()
+
+    def add(self, proc) -> None:
+        self._procs.add(proc)
+
+    def remove(self, proc) -> None:
+        self._procs.discard(proc)
+
+    def stop_all(self) -> None:
+        for proc in list(self._procs):
             try:
-                _current_proc.terminate()
-            except OSError:
-                pass
-    _current_proc = None
+                if proc.returncode is None:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+            except Exception:
+                try:
+                    proc.terminate()
+                except OSError:
+                    pass
+        self._procs.clear()
 
-    for proc in list(_async_procs):
-        try:
-            if proc.returncode is None:
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        except Exception:
-            try:
-                proc.terminate()
-            except OSError:
-                pass
-    _async_procs.clear()
+
+_proc_manager = _ProcessManager()
+
+
+def stop_all_processes() -> None:
+    """실행 중인 모든 서브프로세스를 강제 종료합니다."""
+    _proc_manager.stop_all()
 
 
 def run_command(command: str) -> str:
@@ -59,7 +62,6 @@ def run_command(command: str) -> str:
 
 async def run_command_stream(command: str, log_file: Optional[str] = None):
     """쉘 명령어를 실행하고 출력을 파일과 실시간 스트림으로 반환합니다."""
-    global _async_procs
     try:
         proc = await asyncio.create_subprocess_shell(
             command,
@@ -67,7 +69,7 @@ async def run_command_stream(command: str, log_file: Optional[str] = None):
             stderr=asyncio.subprocess.STDOUT,
             start_new_session=True
         )
-        _async_procs.add(proc)
+        _proc_manager.add(proc)
 
         log_fh = open(log_file, "w", encoding="utf-8") if log_file else None
         try:
@@ -98,7 +100,7 @@ async def run_command_stream(command: str, log_file: Optional[str] = None):
                 log_fh.close()
 
         await proc.wait()
-        _async_procs.discard(proc)
+        _proc_manager.remove(proc)
     except Exception as e:
         yield f"Error: {str(e)}\n"
 

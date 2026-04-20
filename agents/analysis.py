@@ -14,27 +14,25 @@ from core.cancellation import is_cancelled
 _default_client: Optional[AsyncOpenAI] = None
 
 
-def _get_default_client() -> AsyncOpenAI:
+def _resolve_client(ai_config: Optional[dict]) -> tuple:
+    """ai_config에서 (client, model, status_message)를 반환합니다."""
     global _default_client
-    if _default_client is None:
-        _default_client = AsyncOpenAI(base_url=LM_STUDIO_API_URL, api_key="lm-studio")
-    return _default_client
+    if not ai_config:
+        if _default_client is None:
+            _default_client = AsyncOpenAI(base_url=LM_STUDIO_API_URL, api_key="lm-studio")
+        return _default_client, LM_STUDIO_MODEL, f"AI 엔진 활성화: LMStudio ({LM_STUDIO_MODEL})"
 
-
-def _init_ai_client(ai_config: dict):
-    """ai_config dict로부터 AsyncOpenAI 클라이언트와 모델명을 초기화합니다."""
+    c_type = ai_config.get('type', 'lmstudio')
+    c_url = ai_config.get('base_url', LM_STUDIO_API_URL)
+    c_key = (ai_config.get('api_key') or 'lm-studio').strip() or 'lm-studio'
+    c_model = ai_config.get('model', '').strip() or LM_STUDIO_MODEL
     try:
-        c_type = ai_config.get('type', 'lmstudio')
-        c_url = ai_config.get('base_url', LM_STUDIO_API_URL)
-        c_key = ai_config.get('api_key', 'lm-studio')
-        c_model = ai_config.get('model', '').strip() or LM_STUDIO_MODEL
-        c_client = AsyncOpenAI(
-            base_url=c_url,
-            api_key=c_key if c_key and c_key.strip() else 'lm-studio',
-        )
-        return c_client, c_model, f"AI 엔진 활성화: {c_type.upper()} ({c_model})"
+        client = AsyncOpenAI(base_url=c_url, api_key=c_key)
+        return client, c_model, f"AI 엔진 활성화: {c_type.upper()} ({c_model})"
     except Exception as e:
-        return None, None, f"AI 클라이언트 초기화 실패: {e}"
+        if _default_client is None:
+            _default_client = AsyncOpenAI(base_url=LM_STUDIO_API_URL, api_key="lm-studio")
+        return _default_client, LM_STUDIO_MODEL, f"AI 클라이언트 초기화 실패: {e}"
 
 
 async def _find_additional_vectors(client, model, scanned_urls: list, findings: list) -> list:
@@ -142,19 +140,37 @@ async def _dedup_findings_with_ai(client, model, findings: list) -> list:
     return findings
 
 
-def extract_vulnerabilities(raw_content):
+def _extract_objects(text: str) -> list:
+    """{ } 균형을 이용해 텍스트에서 JSON 객체를 추출합니다."""
+    objects = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0 and start != -1:
+                try:
+                    objects.append(json.loads(text[start:i + 1]))
+                except json.JSONDecodeError:
+                    pass
+    return objects
+
+
+def extract_vulnerabilities(raw_content: str) -> list:
     content = raw_content.strip()
-    if content.startswith("```json"):
-        content = content[len("```json"):].strip()
-    if content.startswith("```"):
-        content = content[len("```"):].strip()
+    for prefix in ("```json", "```"):
+        if content.startswith(prefix):
+            content = content[len(prefix):].strip()
+            break
     if content.endswith("```"):
         content = content[:-3].strip()
 
-    found_list = []
     start_idx = content.find('[')
     end_idx = content.rfind(']')
-
     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
         json_str = content[start_idx:end_idx + 1]
         try:
@@ -164,36 +180,9 @@ def extract_vulnerabilities(raw_content):
             if isinstance(parsed, dict):
                 return [parsed]
         except json.JSONDecodeError:
-            brace_count = 0
-            start_ptr = -1
-            for idx, char in enumerate(json_str):
-                if char == '{':
-                    if brace_count == 0:
-                        start_ptr = idx
-                    brace_count += 1
-                elif char == '}':
-                    brace_count -= 1
-                    if brace_count == 0 and start_ptr != -1:
-                        try:
-                            found_list.append(json.loads(json_str[start_ptr:idx + 1]))
-                        except json.JSONDecodeError:
-                            pass
-    else:
-        brace_count = 0
-        start_ptr = -1
-        for idx, char in enumerate(content):
-            if char == '{':
-                if brace_count == 0:
-                    start_ptr = idx
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0 and start_ptr != -1:
-                    try:
-                        found_list.append(json.loads(content[start_ptr:idx + 1]))
-                    except json.JSONDecodeError:
-                        pass
-    return found_list
+            return _extract_objects(json_str)
+
+    return _extract_objects(content)
 
 
 async def run_analysis_agent(
@@ -207,14 +196,8 @@ async def run_analysis_agent(
     if is_cancelled(session_dir):
         return
 
-    local_client = _get_default_client()
-    local_model = LM_STUDIO_MODEL
-
-    if ai_config:
-        _c, _m, _msg = _init_ai_client(ai_config)
-        if _c:
-            local_client, local_model = _c, _m
-        yield stream_log(session_dir, _msg, "AI")
+    local_client, local_model, _msg = _resolve_client(ai_config)
+    yield stream_log(session_dir, _msg, "AI")
 
     yield stream_log(session_dir, "정찰 데이터 기반 분석 대상 선별 및 전처리 시작", "AI", 80)
 
