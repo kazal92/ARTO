@@ -36,6 +36,8 @@ function renderCards(cardsArray) {
         const safeTitle = (card.title || 'Threat').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const verifiedBadge = card.verified
             ? ' <span class="badge bg-danger rounded-pill ms-2"><i class="fa-solid fa-fire text-warning me-1"></i>Verified</span>' : '';
+        const sourceBadge = card.source === 'Nuclei'
+            ? ' <span class="badge ms-1" style="background:#7f1d1d;color:#fca5a5;font-size:0.6rem;vertical-align:middle;"><i class="fa-solid fa-atom me-1"></i>Nuclei</span>' : '';
         const safeTarget = (card.target || '').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const confScore = card.confidence || 0;
         let confClass = "bg-secondary";
@@ -52,7 +54,7 @@ function renderCards(cardsArray) {
             <td class="text-center text-muted" style="font-size:0.8rem;">${index + 1}</td>
             <td><span class="sev-pill ${sevClass}">${sev}</span></td>
             <td><span class="pill ${confClass}" style="min-width:35px;text-align:center;">${confScore}</span></td>
-            <td class="fw-bold" style="color:var(--text-main);">${safeTitle}${verifiedBadge}</td>
+            <td class="fw-bold" style="color:var(--text-main);">${safeTitle}${verifiedBadge}${sourceBadge}</td>
             <td class="text-muted font-mono" style="font-size:0.8rem;word-break:break-all;">${safeTarget}</td>
             <td style="font-size:0.8rem;"><span class="badge bg-secondary font-mono" style="padding:4px 8px;white-space:nowrap;display:inline-block;font-size:0.8rem;">${safeTtp}</span></td>
             <td style="font-size:0.8rem;"><span class="badge bg-dark border font-mono" style="padding:4px 8px;white-space:nowrap;display:inline-block;font-size:0.8rem;">${safeOwasp}</span></td>
@@ -69,6 +71,7 @@ function renderCards(cardsArray) {
     setVal('statCritical', crit);
     setVal('statHigh', high);
     setVal('statMedLow', medlow);
+    setVal('vulnsCount', cardsArray.length);
 }
 
 // ── 삭제 ─────────────────────────────────────────────────

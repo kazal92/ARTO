@@ -10,7 +10,16 @@ from urllib.parse import urljoin
 from urllib3.util.ssl_ import create_urllib3_context
 import urllib3
 
+from config import ALIVE_CHECK_SEMAPHORE, DORK_CHECK_SEMAPHORE
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+def _fetch_json(url: str):
+    try:
+        return requests.get(url, timeout=10).json()
+    except (requests.RequestException, ValueError):
+        return None
 
 
 class LegacyTLSAdapter(HTTPAdapter):
@@ -145,7 +154,7 @@ async def stream_alive_check(domains: list, stop_event: asyncio.Event, mode: str
         'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
     })
 
-    sem = asyncio.Semaphore(20)
+    sem = asyncio.Semaphore(ALIVE_CHECK_SEMAPHORE)
     pending = {}
     next_idx_to_yield = 0
 
@@ -220,15 +229,11 @@ async def process_domain_dork(sem, session, domain_raw, idx, api_keys, cx_id, cu
                 if not key:
                     break
 
-                url = f"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx_id}&q={query}"
+                search_url = f"https://www.googleapis.com/customsearch/v1?key={key}&cx={cx_id}&q={query}"
                 try:
-                    def fetch():
-                        try:
-                            return requests.get(url, timeout=10).json()
-                        except (requests.RequestException, ValueError):
-                            return None
-
-                    data = await asyncio.to_thread(fetch)
+                    data = await asyncio.to_thread(
+                        lambda u=search_url: _fetch_json(u)
+                    )
                     if data and "items" in data:
                         for item in data["items"]:
                             all_findings.append([
@@ -256,7 +261,7 @@ async def process_domain_dork(sem, session, domain_raw, idx, api_keys, cx_id, cu
 
 async def stream_google_dork(domains: list, api_keys: list, cx_id: str, stop_event: asyncio.Event, custom_categories=None):
     session = requests.Session()
-    sem = asyncio.Semaphore(10)
+    sem = asyncio.Semaphore(DORK_CHECK_SEMAPHORE)
     pending = {}
     next_idx_to_yield = 0
 

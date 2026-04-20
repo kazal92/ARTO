@@ -23,10 +23,14 @@ function switchSection(sectionId) {
             'section-settings': '<i class="fa-solid fa-gear text-secondary me-1"></i> 환경 설정 (AI / 프록시)',
             'section-precheck': '<i class="fa-solid fa-bolt text-info me-1"></i> 사전 점검 도구 (URL Alive Check)',
             'section-agent': '<i class="fa-solid fa-robot me-1" style="color:#a78bfa;"></i> AI 에이전트 점검',
-            'section-playwright': '<i class="fa-brands fa-chrome me-1" style="color:#34d399;"></i> Playwright 브라우저 에이전트',
             'section-terminal': '<i class="fa-solid fa-terminal me-1" style="color:#34d399;"></i> 웹 터미널',
         };
         if (labels[sectionId]) breadcrumbText.innerHTML = labels[sectionId];
+    }
+
+    // 엔드포인트 분석 섹션 진입 시 첫 탭(AI 분析)으로 초기화
+    if (sectionId === 'section-endpoints') {
+        if (typeof switchScanResultTab === 'function') switchScanResultTab('vulns');
     }
 
     closeDrawer();
@@ -154,8 +158,12 @@ function appendLog(msg, source = "System") {
         badgeClass = "badge-ai"; badgeText = "AI 분석"; msgColor = "var(--color-purple)";
     } else if (["COMMAND", "CMD", "SHELL"].includes(s)) {
         badgeClass = "badge-cmd"; badgeText = "쉘";
-        prefix = '<span style="color:var(--high);margin-right:5px;">$</span>';
         msgColor = "var(--high)";
+        // 메시지가 이미 $ 로 시작하면 접두사 생략
+        const _m = (msg || "").toString().trimStart();
+        if (!_m.startsWith('$')) {
+            prefix = '<span style="color:var(--high);margin-right:5px;">$</span>';
+        }
     }
 
     const safeMsg = (msg || "").toString();
@@ -224,3 +232,30 @@ function updateThemeUI(theme) {
     if (icon) icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
     if (label) label.textContent = theme === 'dark' ? '라이트 모드' : '다크 모드';
 }
+
+// ── 옵션 패널 토글 ──────────────────────────────────────
+
+function toggleFfufOptions(show) {
+    const panel = document.getElementById('ffufOptionsPanel');
+    if (panel) panel.style.display = show ? 'block' : 'none';
+}
+
+function toggleNucleiOptions(show) {
+    const panel = document.getElementById('nucleiOptionsPanel');
+    if (panel) panel.style.display = show ? 'block' : 'none';
+}
+
+function toggleNmapOptions(show) {
+    const panel = document.getElementById('nmapOptionsPanel');
+    if (panel) panel.style.display = show ? 'block' : 'none';
+}
+
+// 페이지 로드시 초기 상태 설정
+document.addEventListener('DOMContentLoaded', () => {
+    const enableFfuf = document.getElementById('enableFfuf');
+    const enableNuclei = document.getElementById('enableNuclei');
+    const enableNmap = document.getElementById('enableNmap');
+    if (enableFfuf) toggleFfufOptions(enableFfuf.checked);
+    if (enableNuclei) toggleNucleiOptions(enableNuclei.checked);
+    if (enableNmap) toggleNmapOptions(enableNmap.checked);
+});

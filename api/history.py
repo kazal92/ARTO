@@ -35,6 +35,8 @@ class SaveProjectInfoRequest(BaseModel):
     enable_zap_spider: bool = True
     enable_ffuf: bool = True
     enable_deep_recon: bool = True
+    enable_nuclei: bool = False
+    enable_nmap: bool = False
 
 
 class SaveFindingsRequest(BaseModel):
@@ -117,7 +119,6 @@ async def get_history_raw_logs(session_id: str, tool_name: str):
     session_dir = find_session_dir(session_id)
     if not session_dir:
         return {"status": "error", "message": "세션을 찾을 수 없습니다."}
-    # ffuf만 지원 (katana는 제거됨)
     allowed = {"ffuf"}
     if tool_name not in allowed:
         return {"status": "error", "message": f"지원하지 않는 툴: {tool_name}"}
@@ -145,6 +146,22 @@ async def get_history_json_logs(session_id: str, result_name: str):
     return {"status": "error", "message": "데이터를 찾을 수 없습니다."}
 
 
+@router.get("/api/history/{session_id}/text/{subpath:path}")
+async def get_session_text_file(session_id: str, subpath: str):
+    """세션 디렉토리 내 텍스트 파일 내용 반환 (예: nmap/report.txt)"""
+    session_dir = find_session_dir(session_id)
+    if not session_dir:
+        return {"status": "error", "message": "세션을 찾을 수 없습니다."}
+    file_path = os.path.join(session_dir, subpath)
+    # Prevent path traversal
+    if not os.path.abspath(file_path).startswith(os.path.abspath(session_dir)):
+        return {"status": "error", "message": "잘못된 경로입니다."}
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return {"status": "success", "content": f.read()}
+    return {"status": "error", "message": "파일을 찾을 수 없습니다."}
+
+
 @router.put("/api/history/{session_id}/project_info")
 async def save_project_info(session_id: str, req: SaveProjectInfoRequest):
     """프로젝트 설정 저장 (project_info.json 전체 업데이트)"""
@@ -162,7 +179,7 @@ async def save_project_info(session_id: str, req: SaveProjectInfoRequest):
         updated = {
             "project_name": req.project_name if req.project_name else existing.get("project_name", ""),
             "target": req.target if req.target else existing.get("target", ""),
-            "project_type": existing.get("project_type", "scan"),  # 기존 type 유지
+            "project_type": existing.get("project_type", "scan"),
             "headers": req.headers if req.headers else existing.get("headers", {}),
             "ai_config": req.ai_config if req.ai_config else existing.get("ai_config", {}),
             "ffuf_options": req.ffuf_options if req.ffuf_options else existing.get("ffuf_options", ""),
@@ -170,6 +187,8 @@ async def save_project_info(session_id: str, req: SaveProjectInfoRequest):
             "enable_zap_spider": req.enable_zap_spider,
             "enable_ffuf": req.enable_ffuf,
             "enable_deep_recon": req.enable_deep_recon,
+            "enable_nuclei": req.enable_nuclei,
+            "enable_nmap": req.enable_nmap,
         }
 
         with open(info_file, "w", encoding="utf-8") as f:

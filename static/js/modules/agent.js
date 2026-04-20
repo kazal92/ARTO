@@ -421,7 +421,7 @@ function _collectAiConfig() {
             return null;
         }
     } else if (aiType === 'lmstudio') {
-        apiKey = localStorage.getItem('lmstudioApiKey') || 'not-needed';
+        apiKey = localStorage.getItem('lmstudioApiKey') || 'lm-studio';
     }
 
     return {

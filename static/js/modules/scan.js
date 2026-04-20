@@ -4,6 +4,7 @@
 
 let zapHistoryInterval = null;
 let zapHistoryData = [];
+let _scanLive = false; // true after scan_start received — prevents replayed scan_complete from hiding stopBtn
 
 function syncFfufUrl(url) {
     const opts = document.getElementById('ffufOptions');
@@ -61,6 +62,7 @@ async function startScan() {
         if (topbarScanControls) topbarScanControls.style.display = 'flex';
     }
 
+    _scanLive = false;
     updateScanConfigButton(true);
 
     const headersRaw = document.getElementById('customHeaders') ? document.getElementById('customHeaders').value : '';
@@ -88,6 +90,8 @@ async function startScan() {
                 enable_zap_spider: document.getElementById('enableZapSpider') ? document.getElementById('enableZapSpider').checked : true,
                 enable_ffuf: document.getElementById('enableFfuf') ? document.getElementById('enableFfuf').checked : true,
                 enable_deep_recon: document.getElementById('enableDeepRecon') ? document.getElementById('enableDeepRecon').checked : true,
+                enable_nuclei: document.getElementById('enableNuclei') ? document.getElementById('enableNuclei').checked : false,
+                enable_nmap: document.getElementById('enableNmap') ? document.getElementById('enableNmap').checked : false,
                 ai_config: {
                     type: document.getElementById('aiType').value,
                     api_key: document.getElementById('aiType').value === 'gemini'
@@ -131,6 +135,7 @@ async function startScan() {
                         const data = JSON.parse(trimmedEvent.substring(6));
 
                         if (data.type === "scan_start") {
+                            _scanLive = true;
                             localStorage.setItem('currentSessionId', data.session_id);
                             currentProject.id = data.session_id;
                             const select = document.getElementById('historySelect');
@@ -138,7 +143,12 @@ async function startScan() {
                             loadHistoryList();
                             allEndpoints = [];
                             startZapPolling();
-                        } else if (data.type === "log" || data.type === "progress") {
+                        }
+
+                        // 이전 스캔 로그 재전송 구간은 무시 (깜빡임 방지)
+                        if (!_scanLive) continue;
+
+                        if (data.type === "log" || data.type === "progress") {
                             appendLog(data.message || data.msg, data.agent || data.source);
                             const match = (data.message || "").match(/AI 분석 배치 (\d+)\/(\d+) 처리 중/);
                             if (match) updateBatchList(parseInt(match[2]));
@@ -167,16 +177,34 @@ async function startScan() {
                             aiCardsData.push(data.data);
                             renderCards(aiCardsData);
                         }
-                        if (data.type === "scan_complete") {
+                        if (data.type === "scan_complete" && _scanLive) {
+                            _scanLive = false;
+
                             const pBar = document.getElementById('progressBar');
                             const pText = document.getElementById('progressText');
                             const statText = document.getElementById('scanStatusText');
-
                             if (pBar) pBar.style.width = "100%";
                             if (pText) pText.textContent = "100%";
-                            if (statText) statText.innerHTML = `<i class="fa-solid fa-check text-success me-2"></i>모든 스캔 및 분석 작업 완료`;
 
-                            updateScanConfigButton(false);
+                            const nucleiEnabled = document.getElementById('enableNuclei')?.checked;
+                            const nmapEnabled = document.getElementById('enableNmap')?.checked;
+
+                            if (nucleiEnabled && typeof startNucleiScan === 'function') {
+                                if (statText) statText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-danger me-2"></i>Nuclei 취약점 스캔 시작...`;
+                                if (typeof _nucleiRunning !== 'undefined') _nucleiRunning = true;
+                                setTimeout(() => startNucleiScan(), 1000);
+                            }
+                            if (nmapEnabled && typeof startNmapScan === 'function') {
+                                if (statText) statText.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-info me-2"></i>Nmap 포트 스캔 시작...`;
+                                appendLog('Nmap 스캔을 자동 시작합니다...', 'System');
+                                if (typeof _nmapRunning !== 'undefined') _nmapRunning = true;
+                                setTimeout(() => startNmapScan(), nucleiEnabled ? 2000 : 1000);
+                            }
+                            if (!nucleiEnabled && !nmapEnabled) {
+                                if (statText) statText.innerHTML = `<i class="fa-solid fa-check text-success me-2"></i>모든 스캔 및 분석 작업 완료`;
+                                updateScanConfigButton(false);
+                            }
+
                             loadHistoryList();
                         }
                     } catch (err) {
@@ -200,8 +228,11 @@ async function stopScan() {
             body: JSON.stringify({ session_id: sid })
         });
         appendLog("중단 신호가 전송되었습니다. 진행 중인 프로세스를 종료합니다.", "System");
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('stopBtn').disabled = true;
+
+        if (typeof stopNucleiScan === 'function') stopNucleiScan();
+        if (typeof stopNmapScan === 'function') stopNmapScan();
+
+        updateScanConfigButton(false);
     } catch (e) { }
 }
 

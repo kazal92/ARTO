@@ -64,9 +64,9 @@
                             style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
                             <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트 분석</span>
                         </div>
-                        <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-vulns')"
+                        <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-endpoints'); switchScanResultTab('vulns');"
                             style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                            <i class="fa-solid fa-shield-virus" style="font-size: 0.85rem;"></i><span>스캔 결과</span>
+                            <i class="fa-solid fa-brain" style="font-size: 0.85rem; color:#a78bfa;"></i><span>AI 분석</span>
                         </div>
                     </div>
 
@@ -77,13 +77,6 @@
                         <i class="fa-solid fa-robot" style="color:#a78bfa; font-size: 0.85rem;"></i><span>에이전트 점검</span>
                     </div>
 
-                    <!-- 에이전트 점검 2 (Playwright) -->
-                    <div class="menu-item" data-sec="section-playwright"
-                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
-                        onclick="switchSection('section-playwright'); initPlaywrightAgent();">
-                        <i class="fa-brands fa-chrome" style="color:#34d399; font-size: 0.85rem;"></i><span>에이전트 점검 2</span>
-                        <span style="font-size:0.6rem; background:#059669; color:#fff; border-radius:3px; padding:1px 4px; margin-left:4px;">Browser</span>
-                    </div>
 
                     <!-- 웹 터미널 -->
                     <div class="menu-item" data-sec="section-terminal"
@@ -193,70 +186,6 @@
                         onkeydown="agentMsgKeydown(event)"
                         oninput="_agentResizeInput(this)"></textarea>
                     <button class="btn btn-sm btn-outline-primary" onclick="sendAgentMessage()" style="font-size:0.78rem; white-space:nowrap;">
-                        <i class="fa-solid fa-paper-plane me-1"></i>전송
-                    </button>
-                </div>
-            </div>
-
-            <!-- ── 에이전트 점검 2 (Playwright) ── -->
-            <div id="section-playwright" class="content-section flex-section" style="padding:0; flex-direction:column; height:100vh; overflow:hidden;">
-                <!-- 헤더 -->
-                <div style="padding:10px 16px; border-bottom:1px solid var(--border-color); flex-shrink:0; background:var(--card-bg);">
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <i class="fa-brands fa-chrome" style="color:#34d399;"></i>
-                        <span style="font-weight:700; font-size:0.9rem;">Playwright 브라우저 에이전트</span>
-                        <span class="agent-status-dot dot-idle" id="pwStatusDot"></span>
-                        <span id="pwStatusText" style="font-size:0.78rem; color:var(--text-muted);">대기 중</span>
-                        <span id="pwFindingBadge" style="font-size:0.72rem; background:#05966922; color:#34d399; border:1px solid #05966955; border-radius:4px; padding:1px 8px;">취약점 0건</span>
-                        <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
-                            <input id="pwTargetInput" type="text" class="form-control form-control-sm"
-                                placeholder="https://target.com" style="width:240px; font-size:0.8rem; font-family:monospace;">
-                            <button id="pwStartBtn" class="btn btn-sm btn-outline-success" onclick="startPlaywrightAgent()" style="font-size:0.78rem;">
-                                <i class="fa-solid fa-play me-1"></i>브라우저 시작
-                            </button>
-                            <button id="pwStopBtn" class="btn btn-sm btn-outline-danger" onclick="stopPlaywrightAgent()" disabled style="font-size:0.78rem;">
-                                <i class="fa-solid fa-stop me-1"></i>중단
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="clearPlaywrightOutput()" style="font-size:0.78rem;">
-                                <i class="fa-solid fa-trash me-1"></i>초기화
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 본문: 왼쪽 로그 + 오른쪽 스크린샷 -->
-                <div style="flex:1; display:flex; overflow:hidden; min-height:0;">
-                    <!-- 왼쪽: 에이전트 로그 -->
-                    <div id="pwOutput" style="flex:1; overflow-y:auto; padding:12px 16px; font-family:'Fira Code','Cascadia Code',monospace; font-size:0.82rem; background:#0d0f17; color:#e2e8f0; line-height:1.6; border-right:1px solid var(--border-color);"></div>
-
-                    <!-- 오른쪽: 브라우저 스크린샷 -->
-                    <div style="width:480px; flex-shrink:0; display:flex; flex-direction:column; background:#0a0c14;">
-                        <div style="padding:8px 12px; border-bottom:1px solid var(--border-color); font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-                            <i class="fa-solid fa-display" style="color:#34d399;"></i>
-                            <span>브라우저 화면</span>
-                            <span id="pwCurrentUrl" class="ms-auto font-mono text-truncate" style="font-size:0.7rem; max-width:280px; color:#64748b;"></span>
-                        </div>
-                        <div style="flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:8px;">
-                            <img id="pwScreenshot"
-                                src=""
-                                alt="브라우저 스크린샷"
-                                style="max-width:100%; max-height:100%; border-radius:6px; border:1px solid var(--border-color); display:none; object-fit:contain;">
-                            <div id="pwScreenshotPlaceholder" style="text-align:center; color:#334155;">
-                                <i class="fa-solid fa-display" style="font-size:3rem; margin-bottom:12px; opacity:0.3;"></i>
-                                <div style="font-size:0.8rem; opacity:0.4;">에이전트 시작 후<br>브라우저 화면이 표시됩니다</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 하단 지시 입력 -->
-                <div style="border-top:1px solid var(--border-color); padding:8px 12px; background:var(--card-bg); flex-shrink:0; display:flex; gap:8px; align-items:flex-end;">
-                    <textarea id="pwMsgInput" class="form-control form-control-sm"
-                        placeholder="브라우저 에이전트에게 지시... (예: 로그인 페이지에서 SQLi 시도해봐)"
-                        style="font-size:0.82rem; resize:none; height:38px; font-family:monospace; background:var(--input-bg); color:var(--text-main); border-color:var(--border-color);"
-                        onkeydown="pwMsgKeydown(event)"
-                        oninput="_pwResizeInput(this)"></textarea>
-                    <button class="btn btn-sm btn-outline-primary" onclick="sendPlaywrightMessage()" style="font-size:0.78rem; white-space:nowrap;">
                         <i class="fa-solid fa-paper-plane me-1"></i>전송
                     </button>
                 </div>
@@ -696,19 +625,38 @@
                             placeholder="Cookie: sessionid=...&#10;Authorization: Bearer ..."
                             oninput="localStorage.setItem('customHeaders', this.value)"></textarea>
 
-                        <div class="d-flex gap-2 mb-2">
-                            <div style="flex:0 0 22%;">
-                                <label class="form-label text-muted small fw-bold">ffuf 워드리스트</label>
-                                <select id="ffufWordlist" class="form-select" style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.95rem; cursor:pointer;">
-                                    <option value="wordlist_last.txt">wordlist_last.txt</option>
-                                </select>
+                        <!-- ffuf 옵션 (체크시 표시) -->
+                        <div id="ffufOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                            <div class="d-flex gap-2">
+                                <div style="flex:0 0 22%;">
+                                    <label class="form-label text-muted small fw-bold">워드리스트</label>
+                                    <select id="ffufWordlist" class="form-select" style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.95rem; cursor:pointer;">
+                                        <option value="wordlist_last.txt">wordlist_last.txt</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label class="form-label text-muted small fw-bold">고급 옵션</label>
+                                    <input type="text" id="ffufOptions" class="glass-input w-100"
+                                        value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
+                                        placeholder="-t 50 -mc 200,301,302,401,403 -ac -ic">
+                                </div>
                             </div>
-                            <div style="flex:1;">
-                                <label class="form-label text-muted small fw-bold">ffuf 고급 옵션</label>
-                                <input type="text" id="ffufOptions" class="glass-input w-100"
-                                    value="-t 50 -mc 200,204,301,302,307,401,403,500 -ac -ic"
-                                    placeholder="-u http://target.com/FUZZ -t 50 -mc 200,301,302,401,403 -ac -ic">
-                            </div>
+                        </div>
+
+                        <!-- Nuclei 옵션 (체크시 표시) -->
+                        <div id="nucleiOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                            <label class="form-label text-muted small fw-bold">Nuclei 스캔 옵션</label>
+                            <input type="text" id="nucleiOptions" class="glass-input w-100"
+                                value="-severity medium,high,critical -rl 100 -c 25"
+                                placeholder="-severity critical,high -rl 100 -c 25 -tags cve,xss,sqli">
+                        </div>
+
+                        <!-- Nmap 옵션 (체크시 표시) -->
+                        <div id="nmapOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                            <label class="form-label text-muted small fw-bold">Nmap 스캔 옵션</label>
+                            <input type="text" id="nmapOptions" class="glass-input w-100"
+                                value="-sV -T4 --open -p 1-10000"
+                                placeholder="-sV -T4 --open -p 1-65535">
                         </div>
 
                         <label class="form-label text-muted small fw-bold mb-2">스캔 모듈 선택</label>
@@ -743,7 +691,7 @@
                             </label>
 
                             <input class="module-toggle" type="checkbox" id="enableFfuf" checked
-                                onchange="const dr=document.getElementById('enableDeepRecon'); dr.disabled=!this.checked; if(!this.checked) dr.checked=false; dr.dispatchEvent(new Event('change'));">
+                                onchange="const dr=document.getElementById('enableDeepRecon'); dr.disabled=!this.checked; if(!this.checked) dr.checked=false; dr.dispatchEvent(new Event('change')); toggleFfufOptions(this.checked);">
                             <label class="module-btn" for="enableFfuf">
                                 <i class="fa-solid fa-hammer" style="color:#f59e0b;"></i> ffuf 퍼징
                             </label>
@@ -753,10 +701,15 @@
                                 <i class="fa-solid fa-layer-group" style="color:#a78bfa;"></i> ffuf 재귀 탐색
                             </label>
 
-<input class="module-toggle" type="checkbox" id="enableNuclei" disabled>
+
+                            <input class="module-toggle" type="checkbox" id="enableNuclei" checked onchange="toggleNucleiOptions(this.checked);">
                             <label class="module-btn" for="enableNuclei">
                                 <i class="fa-solid fa-atom text-danger"></i> Nuclei
-                                <span class="badge bg-secondary ms-1" style="font-size:0.58rem; font-weight:500;">준비중</span>
+                            </label>
+
+                            <input class="module-toggle" type="checkbox" id="enableNmap" onchange="toggleNmapOptions(this.checked);">
+                            <label class="module-btn" for="enableNmap">
+                                <i class="fa-solid fa-network-wired text-info"></i> Nmap
                             </label>
                         </div>
 
@@ -935,212 +888,243 @@
 
             <!-- 2. Endpoints Section -->
             <div id="section-endpoints" class="content-section">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="section-header mb-0">
-                        <div class="section-header-icon" style="background: rgba(99,102,241,0.1);">
-                            <i class="fa-solid fa-circle-nodes" style="color: #818cf8;"></i>
-                        </div>
-                        <div class="section-header-text">
-                            <h5>엔드포인트 맵</h5>
-                            <p>크롤링 결과 · ZAP 히스토리 · AI 분석 대상</p>
-                        </div>
+                <div class="section-header mb-3">
+                    <div class="section-header-icon" style="background: rgba(99,102,241,0.1);">
+                        <i class="fa-solid fa-circle-nodes" style="color: #818cf8;"></i>
                     </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
-                            <i class="fa-solid fa-trash-can me-1"></i>히스토리 초기화
-                        </button>
-                        <button class="btn btn-sm btn-outline-info" onclick="loadZapHistory()">
-                            <i class="fa-solid fa-bolt me-1"></i>히스토리 로드
-                        </button>
-                        <button id="btnAutoTarget" class="btn btn-sm btn-outline-warning" onclick="autoTarget()">
-                            <i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정
-                        </button>
-                        <button id="btnSaveTargets" class="btn btn-sm btn-outline-success" onclick="saveAiTargets()">
-                            <i class="fa-solid fa-floppy-disk me-1"></i>타겟 저장
-                        </button>
-                        <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
-                            <i class="fa-solid fa-brain me-1"></i>AI 분석 시작
-                        </button>
+                    <div class="section-header-text">
+                        <h5>엔드포인트 분석</h5>
+                        <p>크롤링 결과 · ZAP 히스토리 · AI 분석 · Nuclei · Nmap</p>
                     </div>
                 </div>
 
-                <!-- 📊 Endpoint Summary Banner -->
-                <div class="ep-summary-bar">
-                    <div class="ep-stat-item">
-                        <span class="ep-stat-label">Total</span>
-                        <span class="ep-stat-value" id="statEpTotal">0</span>
+                <!-- 탭 패널 -->
+                <div class="glass-card" style="padding:0; overflow:hidden; border-radius:12px;">
+                    <!-- 탭 헤더 -->
+                    <div class="d-flex" style="border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.15);">
+                        <button class="scan-result-tab active" data-tab="vulns" onclick="switchScanResultTab('vulns')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                            <i class="fa-solid fa-brain me-1" style="color:#a78bfa;"></i>AI 분석
+                            <span id="vulnsCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
+                        </button>
+                        <button class="scan-result-tab" data-tab="endpoints" onclick="switchScanResultTab('endpoints')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                            <i class="fa-solid fa-circle-nodes me-1" style="color:#818cf8;"></i>엔드포인트
+                            <span id="epCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
+                        </button>
+                        <button class="scan-result-tab" data-tab="nuclei" onclick="switchScanResultTab('nuclei')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                            <i class="fa-solid fa-atom text-danger me-1"></i>Nuclei
+                            <span id="nucleiCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
+                        </button>
+                        <button class="scan-result-tab" data-tab="nmap" onclick="switchScanResultTab('nmap')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                            <i class="fa-solid fa-network-wired text-info me-1"></i>Nmap
+                            <span id="nmapCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
+                        </button>
                     </div>
-                    <div class="ep-stat-divider"></div>
-                    <div class="ep-stat-item">
-                        <span class="ep-stat-label">GET</span>
-                        <span class="ep-stat-value" style="color: #10b981;" id="statEpGet">0</span>
-                    </div>
-                    <div class="ep-stat-item">
-                        <span class="ep-stat-label">POST</span>
-                        <span class="ep-stat-value" style="color: #f59e0b;" id="statEpPost">0</span>
-                    </div>
-                    <div class="ep-stat-item">
-                        <span class="ep-stat-label">Others</span>
-                        <span class="ep-stat-value text-muted" id="statEpOther">0</span>
-                    </div>
-                    <div class="ep-stat-divider"></div>
-                    <div class="ep-stat-item">
-                        <span class="ep-stat-label">AI Targeted</span>
-                        <span class="ep-stat-value" style="color: #8b5cf6;" id="statEpAi">0</span>
-                    </div>
-                </div>
 
-                <div class="glass-card" style="padding: 0; overflow: hidden; border-radius: 12px;">
-                    <div class="table-responsive">
-                        <table class="ep-table">
-                            <thead>
-                                <tr>
-                                    <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No. <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">
-                                        <input type="checkbox" id="checkAllEndpoints" onclick="event.stopPropagation()" onchange="toggleAllEndpoints(this)" style="margin-right:4px;">AI <i class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">
-                                        Method <i class="fa-solid fa-sort ms-1"></i></th>
-                                    <th class="sortable" onclick="sortEndpoints('url')">URL Path <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status
-                                        <i class="fa-solid fa-sort ms-1"></i>
-                                    </th>
-                                    <th width="100" class="text-center sortable" onclick="sortEndpoints('sources')">Source <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
-                                    <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i
-                                            class="fa-solid fa-sort ms-1"></i></th>
-                                </tr>
-                                <tr class="filter-row">
-                                    <th></th>
-                                    <th>
-                                        <select id="filterAiTarget" onchange="applyFilters()"
-                                            style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
-                                            <option value="">All</option>
-                                            <option value="yes">Targeted</option>
-                                            <option value="no">Skipped</option>
-                                        </select>
-                                    </th>
-                                    <th>
-                                        <input type="text" id="filter메소드" placeholder="Method..."
-                                            onkeyup="applyFilters()"
-                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
-                                    </th>
-                                    <th>
-                                        <input type="text" id="filterUrl" placeholder="URL 검색..."
-                                            onkeyup="applyFilters()"
-                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
-                                    </th>
-                                    <th>
-                                        <input type="text" id="filterStatus" placeholder="Code..."
-                                            onkeyup="applyFilters()"
-                                            style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
-                                    </th>
-                                    <th>
-                                        <select id="filterSource" onchange="applyFilters()"
-                                            style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
-                                            <option value="">All</option>
-                                            <option value="zap_only">ZAP</option>
-                                            <option value="ffuf_only">ffuf</option>
-                                            <option value="both">ZAP+ffuf</option>
-                                        </select>
-                                    </th>
-                                    <th></th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="endpointsTableBody">
-                                <tr>
-                                    <td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <!-- 엔드포인트 탭 콘텐츠 -->
+                    <div id="endpointsTabPanel" style="display:none;">
+                        <!-- 툴바 -->
+                        <div class="d-flex gap-2 align-items-center" style="padding:10px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
+                                <i class="fa-solid fa-trash-can me-1"></i>히스토리 초기화
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="loadZapHistory()">
+                                <i class="fa-solid fa-bolt me-1"></i>히스토리 로드
+                            </button>
+                            <button id="btnAutoTarget" class="btn btn-sm btn-outline-warning" onclick="autoTarget()">
+                                <i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정
+                            </button>
+                            <button id="btnSaveTargets" class="btn btn-sm btn-outline-success" onclick="saveAiTargets()">
+                                <i class="fa-solid fa-floppy-disk me-1"></i>타겟 저장
+                            </button>
+                            <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
+                                <i class="fa-solid fa-brain me-1"></i>AI 분석 시작
+                            </button>
+                        </div>
+                        <!-- 📊 Endpoint Summary Banner -->
+                        <div class="ep-summary-bar" style="margin:12px 16px 0; border-radius:8px;">
+                            <div class="ep-stat-item">
+                                <span class="ep-stat-label">Total</span>
+                                <span class="ep-stat-value" id="statEpTotal">0</span>
+                            </div>
+                            <div class="ep-stat-divider"></div>
+                            <div class="ep-stat-item">
+                                <span class="ep-stat-label">GET</span>
+                                <span class="ep-stat-value" style="color: #10b981;" id="statEpGet">0</span>
+                            </div>
+                            <div class="ep-stat-item">
+                                <span class="ep-stat-label">POST</span>
+                                <span class="ep-stat-value" style="color: #f59e0b;" id="statEpPost">0</span>
+                            </div>
+                            <div class="ep-stat-item">
+                                <span class="ep-stat-label">Others</span>
+                                <span class="ep-stat-value text-muted" id="statEpOther">0</span>
+                            </div>
+                            <div class="ep-stat-divider"></div>
+                            <div class="ep-stat-item">
+                                <span class="ep-stat-label">AI Targeted</span>
+                                <span class="ep-stat-value" style="color: #8b5cf6;" id="statEpAi">0</span>
+                            </div>
+                        </div>
+                        <div class="table-responsive" style="margin-top:12px;">
+                            <table class="ep-table">
+                                <thead>
+                                    <tr>
+                                        <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No. <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">
+                                            <input type="checkbox" id="checkAllEndpoints" onclick="event.stopPropagation()" onchange="toggleAllEndpoints(this)" style="margin-right:4px;">AI <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">Method <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th class="sortable" onclick="sortEndpoints('url')">URL Path <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('sources')">Source <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i class="fa-solid fa-sort ms-1"></i></th>
+                                    </tr>
+                                    <tr class="filter-row">
+                                        <th></th>
+                                        <th>
+                                            <select id="filterAiTarget" onchange="applyFilters()"
+                                                style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                                <option value="">All</option>
+                                                <option value="yes">Targeted</option>
+                                                <option value="no">Skipped</option>
+                                            </select>
+                                        </th>
+                                        <th>
+                                            <input type="text" id="filter메소드" placeholder="Method..."
+                                                onkeyup="applyFilters()"
+                                                style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                        </th>
+                                        <th>
+                                            <input type="text" id="filterUrl" placeholder="URL 검색..."
+                                                onkeyup="applyFilters()"
+                                                style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                        </th>
+                                        <th>
+                                            <input type="text" id="filterStatus" placeholder="Code..."
+                                                onkeyup="applyFilters()"
+                                                style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; width: 100%;">
+                                        </th>
+                                        <th>
+                                            <select id="filterSource" onchange="applyFilters()"
+                                                style="background-color: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.7rem; padding: 2px; border-radius: 4px; width: 100%;">
+                                                <option value="">All</option>
+                                                <option value="zap_only">ZAP</option>
+                                                <option value="ffuf_only">ffuf</option>
+                                                <option value="both">ZAP+ffuf</option>
+                                            </select>
+                                        </th>
+                                        <th></th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="endpointsTableBody">
+                                    <tr>
+                                        <td colspan="8" class="empty-state">데이터를 불러오는 중입니다...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="endpointPagination" class="d-flex justify-content-center py-3 border-top"
+                            style="border-color: var(--border-color) !important;"></div>
                     </div>
-                    <div id="endpointPagination" class="d-flex justify-content-center py-3 border-top"
-                        style="border-color: var(--border-color) !important;"></div>
+
+                    <!-- AI 분석 탭 콘텐츠 (vulns) -->
+                    <div id="vulnsTabPanel">
+                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedCards()">
+                                <i class="fa-solid fa-trash-can me-1"></i>선택 삭제
+                            </button>
+                        </div>
+                        <div style="padding:16px;">
+                        <div class="stats-grid mb-3">
+                            <div class="stat-badge" style="border-top: 3px solid var(--critical);">
+                                <i class="fa-solid fa-radiation text-danger stat-icon"></i>
+                                <div class="stat-info">
+                                    <div class="stat-title">치명적 위험</div>
+                                    <div class="stat-number" id="statCritical">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-badge" style="border-top: 3px solid var(--high);">
+                                <i class="fa-solid fa-burst text-warning stat-icon"></i>
+                                <div class="stat-info">
+                                    <div class="stat-title">고위험</div>
+                                    <div class="stat-number" id="statHigh">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-badge" style="border-top: 3px solid var(--medium);">
+                                <i class="fa-solid fa-circle-exclamation text-info stat-icon"></i>
+                                <div class="stat-info">
+                                    <div class="stat-title">중/저위험</div>
+                                    <div class="stat-number" id="statMedLow">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-badge" style="border-top: 3px solid var(--info);">
+                                <i class="fa-solid fa-link text-primary stat-icon"></i>
+                                <div class="stat-info">
+                                    <div class="stat-title">엔드포인트</div>
+                                    <div class="stat-number" id="statEndpoints">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive" style="max-height:calc(100vh - 320px); overflow-y:auto;">
+                            <table class="flat-table">
+                                <thead>
+                                    <tr>
+                                        <th width="4%" class="text-center">
+                                            <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)" style="cursor:pointer;">
+                                        </th>
+                                        <th width="4%">No.</th>
+                                        <th width="8%">위험도</th>
+                                        <th width="6%">점수</th>
+                                        <th width="22%">취약점 명칭</th>
+                                        <th width="25%">대상 파라미터 / 주입 상세</th>
+                                        <th width="10%">TTP</th>
+                                        <th width="12%">OWASP TOP10</th>
+                                        <th width="7%" class="text-center">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vulnsTableBody">
+                                    <tr>
+                                        <td colspan="9" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        </div><!-- /padding:16px -->
+                    </div><!-- /vulnsTabPanel -->
+
+                    <!-- Nuclei 탭 콘텐츠 -->
+                    <div id="nucleiTabPanel" style="display:none;">
+                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="nucleiResults=[]; renderNucleiResults();">
+                                <i class="fa-solid fa-trash-can me-1"></i>결과 초기화
+                            </button>
+                        </div>
+                        <div id="nucleiResultsPanel" style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
+                            <div class="scan-result-empty">발견된 Nuclei 결과가 없습니다.</div>
+                        </div>
+                    </div>
+
+                    <!-- Nmap 탭 콘텐츠 -->
+                    <div id="nmapTabPanel" style="display:none;">
+                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="nmapResults=[]; renderNmapResults();">
+                                <i class="fa-solid fa-trash-can me-1"></i>결과 초기화
+                            </button>
+                        </div>
+                        <div id="nmapResultsPanel" style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
+                            <div class="scan-result-empty">발견된 Nmap 결과가 없습니다.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- 3. Vulnerabilities Section -->
-            <div id="section-vulns" class="content-section">
-                <div class="stats-grid mb-4">
-                    <div class="stat-badge" style="border-top: 3px solid var(--critical);">
-                        <i class="fa-solid fa-radiation text-danger stat-icon"></i>
-                        <div class="stat-info">
-                            <div class="stat-title">치명적 위험</div>
-                            <div class="stat-number" id="statCritical">0</div>
-                        </div>
-                    </div>
-                    <div class="stat-badge" style="border-top: 3px solid var(--high);">
-                        <i class="fa-solid fa-burst text-warning stat-icon"></i>
-                        <div class="stat-info">
-                            <div class="stat-title">고위험</div>
-                            <div class="stat-number" id="statHigh">0</div>
-                        </div>
-                    </div>
-                    <div class="stat-badge" style="border-top: 3px solid var(--medium);">
-                        <i class="fa-solid fa-circle-exclamation text-info stat-icon"></i>
-                        <div class="stat-info">
-                            <div class="stat-title">중/저위험</div>
-                            <div class="stat-number" id="statMedLow">0</div>
-                        </div>
-                    </div>
-                    <div class="stat-badge" style="border-top: 3px solid var(--info);">
-                        <i class="fa-solid fa-link text-primary stat-icon"></i>
-                        <div class="stat-info">
-                            <div class="stat-title">엔드포인트</div>
-                            <div class="stat-number" id="statEndpoints">0</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="section-header mb-0">
-                        <div class="section-header-icon" style="background: rgba(239,68,68,0.1);">
-                            <i class="fa-solid fa-shield-virus text-danger"></i>
-                        </div>
-                        <div class="section-header-text">
-                            <h5>감지된 보안 취약점 목록</h5>
-                            <p>AI 분석 결과 · 신뢰도 기반 분류</p>
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-outline-danger" style="font-size: 0.78rem;"
-                        onclick="deleteSelectedCards()">
-                        <i class="fa-solid fa-trash-can me-1"></i> 선택 삭제
-                    </button>
-                </div>
-                <div class="glass-card">
-                    <div class="table-responsive">
-                        <table class="flat-table">
-                            <thead>
-                                <tr>
-                                    <th width="4%" class="text-center">
-                                        <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)"
-                                            style="cursor:pointer;">
-                                    </th>
-                                    <th width="4%">No.</th>
-                                    <th width="8%">위험도</th>
-                                    <th width="6%">점수</th>
-                                    <th width="22%">취약점 명칭</th>
-                                    <th width="25%">대상 파라미터 / 주입 상세</th>
-                                    <th width="10%">TTP</th>
-                                    <th width="12%">OWASP TOP10</th>
-                                    <th width="7%" class="text-center">관리</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vulnsTableBody">
-                                <tr>
-                                    <td colspan="9" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+            <!-- section-vulns는 sidebar 호환성을 위해 유지 (빈 섹션) -->
+            <div id="section-vulns" class="content-section"></div>
 
         </div>
+
+            <!-- Nuclei Section -->
 
         <!-- 5. Settings Section -->
         <!-- 🏢 Side Drawer Inspector (동적 생성 연동 예정) -->
@@ -1181,8 +1165,8 @@
     <script src="/static/js/modules/main.js"></script>
     <script src="/static/js/modules/agent.js"></script>
     <script src="/static/js/modules/terminal.js"></script>
-    <script src="/static/js/modules/playwright_agent.js"></script>
-
+    <script src="/static/js/modules/nuclei.js"></script>
+    <script src="/static/js/modules/nmap.js"></script>
     <!-- 앱 진입점 (경량화됨) -->
     <script src="/static/js/app.js"></script>
 </body>

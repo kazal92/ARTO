@@ -18,6 +18,11 @@ async def mark_cancelled(session_dir: str) -> None:
         _cancelled_sessions.add(session_dir)
 
 
+async def clear_cancelled(session_dir: str) -> None:
+    async with _get_lock():
+        _cancelled_sessions.discard(session_dir)
+
+
 def is_cancelled(session_dir: str) -> bool:
     return session_dir in _cancelled_sessions
 

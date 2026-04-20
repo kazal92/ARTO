@@ -428,6 +428,11 @@ async function loadHistoryList(skipSwitch = false) {
 
             if (savedSession && ((data.sessions && data.sessions.includes(savedSession)) || (globalPrecheckSessions.includes(savedSession)))) {
                 setTimeout(() => {
+                    // 스캔/Nuclei/Nmap 진행 중이면 selectProject 호출 금지 (logWindow 덮어쓰기 방지)
+                    const busy = (typeof _scanLive !== 'undefined' && _scanLive)
+                        || (typeof _nucleiRunning !== 'undefined' && _nucleiRunning)
+                        || (typeof _nmapRunning !== 'undefined' && _nmapRunning);
+                    if (busy) return;
                     if (typeof selectProject === 'function') {
                         selectProject(savedSession, target);
                     }
@@ -468,6 +473,11 @@ async function startNewScanWizard() {
 }
 
 async function selectProject(sId, targetSec = null) {
+    const alreadyActive = currentProject.id === sId;
+    const scanInProgress = (typeof _scanLive !== 'undefined' && _scanLive)
+        || (typeof _nucleiRunning !== 'undefined' && _nucleiRunning)
+        || (typeof _nmapRunning !== 'undefined' && _nmapRunning);
+
     currentProject.id = sId;
     localStorage.setItem('currentSessionId', sId);
 
@@ -475,7 +485,9 @@ async function selectProject(sId, targetSec = null) {
     const topbarScanControls = document.getElementById('topbarScanControls');
     if (topbarScanControls) topbarScanControls.style.display = 'flex';
 
-    loadSession(sId);
+    if (!(alreadyActive && scanInProgress)) {
+        loadSession(sId);
+    }
 
     let pName = sId;
     let pTarget = "";
@@ -581,6 +593,14 @@ async function selectProject(sId, targetSec = null) {
             if (info.enable_deep_recon !== undefined) {
                 const el = document.getElementById('enableDeepRecon');
                 if (el) el.checked = info.enable_deep_recon;
+            }
+            if (info.enable_nuclei !== undefined) {
+                const el = document.getElementById('enableNuclei');
+                if (el) { el.checked = info.enable_nuclei; if (typeof toggleNucleiOptions === 'function') toggleNucleiOptions(info.enable_nuclei); }
+            }
+            if (info.enable_nmap !== undefined) {
+                const el = document.getElementById('enableNmap');
+                if (el) { el.checked = info.enable_nmap; if (typeof toggleNmapOptions === 'function') toggleNmapOptions(info.enable_nmap); }
             }
             // 커스텀 헤더 반영
             if (info.headers && Object.keys(info.headers).length > 0) {

@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import urllib.parse
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -9,6 +10,9 @@ from agents.analysis import run_analysis_agent
 from core.session import find_session_dir, save_tool_result
 from core.logging import stream_log, stream_custom
 from core.cancellation import mark_active, mark_inactive, is_active
+from core.sse import stream_log_file
+from tools import minimize_request_raw, extract_relevant_snippet
+from config import ENABLE_REQUEST_COMPRESSION
 
 router = APIRouter()
 
@@ -20,7 +24,8 @@ async def clear_session_log(session_id: str):
         return {"status": "error", "message": "세션을 찾을 수 없습니다."}
     log_file = os.path.join(session_dir, "scan_log.jsonl")
     if os.path.exists(log_file):
-        open(log_file, "w").close()
+        with open(log_file, "w"):
+            pass
     return {"status": "ok"}
 
 
@@ -35,10 +40,6 @@ async def auto_target(session_id: str):
     if not os.path.exists(recon_map_path):
         return {"status": "error", "message": "정찰 데이터가 없습니다."}
 
-    import urllib.parse
-    from tools import minimize_request_raw, extract_relevant_snippet
-    from config import ENABLE_REQUEST_COMPRESSION
-
     with open(recon_map_path, "r", encoding="utf-8") as f:
         recon_data = json.load(f)
 
@@ -48,6 +49,9 @@ async def auto_target(session_id: str):
         req_raw = ep.get("request_raw")
         res_raw = ep.get("response_raw", "")
         if not req_raw:
+            continue
+        status = str(ep.get("status", ""))
+        if status in ("400", "404", "405"):
             continue
         minimized_req = minimize_request_raw(req_raw) if ENABLE_REQUEST_COMPRESSION else req_raw
         req_parts = req_raw.split("\n\n", 1)
@@ -61,7 +65,6 @@ async def auto_target(session_id: str):
             "response_context": context["response_context"],
         })
 
-    # 구조적 중복 제거 (자동 타겟지정)
     filtered = []
     seen_structs = {}
     for req in all_requests:
@@ -70,7 +73,7 @@ async def auto_target(session_id: str):
         q_keys = ",".join(sorted(urllib.parse.parse_qs(parsed.query).keys()))
         struct_key = f"{req['method']}:{path}:{q_keys or 'no_params'}"
         seen_structs[struct_key] = seen_structs.get(struct_key, 0) + 1
-        if seen_structs[struct_key] <= 2:
+        if seen_structs[struct_key] <= 1:
             filtered.append(req)
 
     target_keys = [f"{r['method']}:{r['url']}" for r in filtered]
@@ -96,10 +99,6 @@ async def save_ai_targets(session_id: str, body: dict):
     recon_map_path = os.path.join(session_dir, "recon_map.json")
     if not os.path.exists(recon_map_path):
         return {"status": "error", "message": "정찰 데이터가 없습니다."}
-
-    import urllib.parse
-    from tools import minimize_request_raw, extract_relevant_snippet
-    from config import ENABLE_REQUEST_COMPRESSION
 
     selected_keys = set(body.get("targets", []))  # ["METHOD:URL", ...]
 
@@ -162,7 +161,6 @@ async def save_recon_map(session_id: str, request: Request):
 
     recon_map_path = os.path.join(session_dir, "recon_map.json")
 
-    # 기존 recon_map.json와 병합 (스캔 결과 보존)
     existing_endpoints = []
     existing_target = target
     if os.path.exists(recon_map_path):
@@ -175,7 +173,6 @@ async def save_recon_map(session_id: str, request: Request):
         except Exception:
             pass
 
-    # 중복 제거: METHOD:URL 기준
     existing_keys = {f"{(ep.get('method') or 'GET').upper()}:{ep.get('url', '')}" for ep in existing_endpoints}
     merged = list(existing_endpoints)
     for ep in endpoints:
@@ -206,7 +203,6 @@ async def run_ai(session_id: str, request: Request):
     recon_map_path = os.path.join(session_dir, "recon_map.json")
 
     if provided_endpoints:
-        # 프론트에서 직접 전송한 데이터 사용
         recon_data = {"target": "", "endpoints": provided_endpoints}
         if os.path.exists(recon_map_path):
             with open(recon_map_path, "r", encoding="utf-8") as f:
@@ -222,7 +218,6 @@ async def run_ai(session_id: str, request: Request):
 
     log_file = os.path.join(session_dir, "scan_log.jsonl")
 
-    # 기존 로그의 끝 라인 위치를 미리 기록 (이전 스캔 로그를 건너뜀)
     initial_lines = 0
     if os.path.exists(log_file):
         with open(log_file, "r", encoding="utf-8") as f:
@@ -249,29 +244,7 @@ async def run_ai(session_id: str, request: Request):
 
         asyncio.create_task(run_task())
 
-        sent_lines = initial_lines
-        timeout_count = 0
-        while timeout_count < 7200:
-            if os.path.exists(log_file):
-                with open(log_file, "r", encoding="utf-8") as f:
-                    all_lines = f.readlines()
-                    if len(all_lines) > sent_lines:
-                        for idx in range(sent_lines, len(all_lines)):
-                            line = all_lines[idx].strip()
-                            if line:
-                                yield f"data: {line}\n\n"
-                                sent_lines += 1
-                                if "scan_complete" in line:
-                                    return
-
-            if not is_active(session_dir):
-                await asyncio.sleep(2)
-                if os.path.exists(log_file):
-                    with open(log_file, "r", encoding="utf-8") as f:
-                        if len(f.readlines()) <= sent_lines:
-                            break
-
-            await asyncio.sleep(0.5)
-            timeout_count += 1
+        async for event in stream_log_file(session_dir, log_file, start_line=initial_lines):
+            yield event
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

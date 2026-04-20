@@ -5,14 +5,11 @@ import urllib.parse
 from typing import Dict, List, Optional
 
 from openai import AsyncOpenAI
-from config import LM_STUDIO_API_URL, LM_STUDIO_MODEL
+from config import LM_STUDIO_API_URL, LM_STUDIO_MODEL, ENABLE_REQUEST_COMPRESSION, AI_MAX_BATCH_SIZE
 from tools import minimize_request_raw, extract_relevant_snippet
 from core.session import save_tool_result
 from core.logging import stream_log, stream_custom, stream_chunk
 from core.cancellation import is_cancelled
-
-# AI 분석에서 요청 패킷 압축 여부
-ENABLE_REQUEST_COMPRESSION = True
 
 _default_client: Optional[AsyncOpenAI] = None
 
@@ -20,7 +17,7 @@ _default_client: Optional[AsyncOpenAI] = None
 def _get_default_client() -> AsyncOpenAI:
     global _default_client
     if _default_client is None:
-        _default_client = AsyncOpenAI(base_url=LM_STUDIO_API_URL, api_key="not-needed")
+        _default_client = AsyncOpenAI(base_url=LM_STUDIO_API_URL, api_key="lm-studio")
     return _default_client
 
 
@@ -29,11 +26,11 @@ def _init_ai_client(ai_config: dict):
     try:
         c_type = ai_config.get('type', 'lmstudio')
         c_url = ai_config.get('base_url', LM_STUDIO_API_URL)
-        c_key = ai_config.get('api_key', 'not-needed')
+        c_key = ai_config.get('api_key', 'lm-studio')
         c_model = ai_config.get('model', '').strip() or LM_STUDIO_MODEL
         c_client = AsyncOpenAI(
             base_url=c_url,
-            api_key=c_key if c_key and c_key.strip() else 'not-needed',
+            api_key=c_key if c_key and c_key.strip() else 'lm-studio',
         )
         return c_client, c_model, f"AI 엔진 활성화: {c_type.upper()} ({c_model})"
     except Exception as e:
@@ -271,7 +268,6 @@ async def run_analysis_agent(
         req.pop('source', None)
         req.pop('url', None)
 
-    # scanned_from 매칭용 lookup (raw_request 첫 줄 → {raw_request, response_context})
     scanned_from_map = {
         req['raw_request'].split('\n')[0].strip(): req
         for req in all_requests
@@ -283,17 +279,14 @@ async def run_analysis_agent(
     batches = []
     current_batch = []
     current_len = 0
-    MAX_BATCH_SIZE = 8000
-    if ai_config and ai_config.get('type') == 'gemini':
-        MAX_BATCH_SIZE = 500000
+    batch_size = 500000 if (ai_config and ai_config.get('type') == 'gemini') else AI_MAX_BATCH_SIZE
 
-    # ai_config에서 개수 한도 읽기 (0 또는 미설정이면 무제한)
     max_per_batch = int((ai_config or {}).get('max_endpoints_per_batch', 0)) or None
 
     for req in all_requests:
         await asyncio.sleep(0)
         req_str = json.dumps(req, ensure_ascii=False)
-        size_over = (current_len + len(req_str) > MAX_BATCH_SIZE) and current_batch
+        size_over = (current_len + len(req_str) > batch_size) and current_batch
         count_over = max_per_batch is not None and len(current_batch) >= max_per_batch
         if (size_over or count_over) and current_batch:
             batches.append(current_batch)
@@ -309,6 +302,7 @@ async def run_analysis_agent(
         yield stream_log(session_dir, f"Batch #{i+1} 가동 준비 완료: {len(b)}개의 요청 포함", "AI")
 
     all_findings = []
+    seen_finding_keys: set = set()
     prev_findings_count = 0
     old_path = os.path.join(session_dir, "ai_findings.json")
     if os.path.exists(old_path):
@@ -316,6 +310,10 @@ async def run_analysis_agent(
             with open(old_path, 'r', encoding='utf-8') as f:
                 all_findings = json.load(f)
                 prev_findings_count = len(all_findings)
+                seen_finding_keys = {
+                    (f.get('title', ''), f.get('target', ''))
+                    for f in all_findings if isinstance(f, dict)
+                }
         except (json.JSONDecodeError, OSError):
             all_findings = []
 
@@ -400,17 +398,14 @@ async def run_analysis_agent(
                     if not isinstance(conf, (int, float)):
                         conf = 0
 
-                    is_dup = any(
-                        old_f.get('title') == f.get('title') and old_f.get('target') == f.get('target')
-                        for old_f in all_findings
-                    )
-                    if is_dup:
+                    dup_key = (f.get('title', ''), f.get('target', ''))
+                    if dup_key in seen_finding_keys:
                         continue
+                    seen_finding_keys.add(dup_key)
 
                     f["source"] = "AI_Agent_A"
                     f["verified"] = False
 
-                    # scanned_from 매칭으로 원본 요청/응답 첨부
                     scanned_from_key = (f.get("scanned_from") or "").strip()
                     matched_req = scanned_from_map.get(scanned_from_key)
                     if matched_req:
@@ -441,12 +436,10 @@ async def run_analysis_agent(
             for f in additional:
                 if not isinstance(f, dict):
                     continue
-                is_dup = any(
-                    old_f.get('title') == f.get('title') and old_f.get('target') == f.get('target')
-                    for old_f in all_findings
-                )
-                if is_dup:
+                dup_key = (f.get('title', ''), f.get('target', ''))
+                if dup_key in seen_finding_keys:
                     continue
+                seen_finding_keys.add(dup_key)
                 all_findings.append(f)
                 newly_added_extra += 1
                 yield stream_log(session_dir, f"추가 벡터 식별: '{f.get('title')}'", "System")

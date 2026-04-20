@@ -54,6 +54,9 @@ async function loadSession(sessionId) {
     renderCards([]);
     aiCardsData = [];
     aiTargetUrls.clear();
+    // nuclei/nmap 결과 초기화
+    if (typeof nucleiResults !== 'undefined') { nucleiResults = []; if (typeof renderNucleiResults === 'function') renderNucleiResults(); }
+    if (typeof nmapResults !== 'undefined') { nmapResults = []; if (typeof renderNmapResults === 'function') renderNmapResults(); }
     document.getElementById('batchList').innerHTML = '<li><a class="dropdown-item text-muted">Scanning...</a></li>';
     document.getElementById('logWindow').innerHTML = `<div class="text-muted">Loading session data...</div>`;
 
@@ -220,6 +223,28 @@ async function loadSession(sessionId) {
             }
         }
     } catch (e) { console.warn("Logs load failed", e); }
+
+    // 6. Nuclei Findings 복원
+    try {
+        const resNuclei = await fetch(`${API_BASE}/api/history/${sessionId}/json/nuclei_findings`);
+        const nucleiJson = await resNuclei.json();
+        if (nucleiJson.status === "success") {
+            const findings = JSON.parse(nucleiJson.content);
+            if (typeof nucleiResults !== 'undefined') nucleiResults = [];
+            findings.forEach(f => { if (typeof addNucleiResult === 'function') addNucleiResult(f); });
+        }
+    } catch (e) { console.warn("Nuclei findings load failed", e); }
+
+    // 7. Nmap Findings 복원
+    try {
+        const resNmap = await fetch(`${API_BASE}/api/history/${sessionId}/json/nmap_findings`);
+        const nmapJson = await resNmap.json();
+        if (nmapJson.status === "success") {
+            const findings = JSON.parse(nmapJson.content);
+            if (typeof nmapResults !== 'undefined') nmapResults = [];
+            findings.forEach(f => { if (typeof addNmapResult === 'function') addNmapResult(f); });
+        }
+    } catch (e) { console.warn("Nmap findings load failed", e); }
 }
 
 function copyToClipboard(btn) {

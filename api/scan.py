@@ -11,7 +11,8 @@ from pydantic import BaseModel, field_validator
 from agents.recon import run_recon_agent
 from core.session import get_session_dir, find_session_dir, save_tool_result
 from core.logging import stream_log, stream_custom
-from core.cancellation import is_cancelled, mark_cancelled, mark_active, mark_inactive, is_active
+from core.cancellation import is_cancelled, mark_cancelled, mark_active, mark_inactive, is_active, clear_cancelled
+from core.sse import stream_log_file
 from tools import stop_all_processes
 
 router = APIRouter()
@@ -29,6 +30,8 @@ class ScanRequest(BaseModel):
     enable_zap_spider: bool = True
     enable_ffuf: bool = True
     enable_deep_recon: bool = True
+    enable_nuclei: bool = False
+    enable_nmap: bool = False
 
     @field_validator("target_url")
     @classmethod
@@ -65,7 +68,9 @@ async def create_project(req: ScanRequest):
                 "ffuf_wordlist": req.ffuf_wordlist,
                 "enable_zap_spider": req.enable_zap_spider,
                 "enable_ffuf": req.enable_ffuf,
-                "enable_deep_recon": req.enable_deep_recon
+                "enable_deep_recon": req.enable_deep_recon,
+                "enable_nuclei": req.enable_nuclei,
+                "enable_nmap": req.enable_nmap
             }, f, ensure_ascii=False, indent=2)
 
         stream_log(session_dir, "프로젝트가 성공적으로 생성되었습니다. (대시보드 진입 대기)", "System", 0)
@@ -130,9 +135,11 @@ async def start_scan(req: ScanRequest, request: Request):
                         "ffuf_wordlist": req.ffuf_wordlist,
                         "enable_zap_spider": req.enable_zap_spider,
                         "enable_ffuf": req.enable_ffuf,
-                        "enable_deep_recon": req.enable_deep_recon
+                        "enable_deep_recon": req.enable_deep_recon,
+                        "enable_nuclei": req.enable_nuclei,
+                        "enable_nmap": req.enable_nmap
                     }, f, ensure_ascii=False, indent=2)
-            except Exception as e:
+            except Exception:
                 pass
 
             msg_json = stream_log(session_dir, f"스캔 세션 시작: {session_dir}", "System", 0)
@@ -140,6 +147,7 @@ async def start_scan(req: ScanRequest, request: Request):
             sent_lines += 1
 
         if not is_resume and not is_active(session_dir):
+            await clear_cancelled(session_dir)  # 이전 정지 상태 초기화
             await mark_active(session_dir)
 
             async def run_scan_task(ai_config: dict):
@@ -163,33 +171,10 @@ async def start_scan(req: ScanRequest, request: Request):
 
             asyncio.create_task(run_scan_task(req.ai_config))
 
-        timeout_count = 0
-        while timeout_count < 7200:
-            if os.path.exists(log_file):
-                with open(log_file, "r", encoding="utf-8") as f:
-                    all_lines = f.readlines()
-                    if len(all_lines) > sent_lines:
-                        for idx in range(sent_lines, len(all_lines)):
-                            line = all_lines[idx].strip()
-                            if line:
-                                yield f"data: {line}\n\n"
-                                sent_lines += 1
-                                if "scan_complete" in line:
-                                    return
-
-            if not is_active(session_dir):
-                await asyncio.sleep(2)
-                if os.path.exists(log_file):
-                    with open(log_file, "r", encoding="utf-8") as f:
-                        if len(f.readlines()) <= sent_lines:
-                            break
-
-            await asyncio.sleep(0.5)
-            timeout_count += 1
+        async for event in stream_log_file(session_dir, log_file, start_line=sent_lines):
+            yield event
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
 
 
 @router.post("/api/scan/stop")

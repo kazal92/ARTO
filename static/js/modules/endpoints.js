@@ -8,6 +8,8 @@ let endpointSortState = { column: 'ai', direction: 'asc' };
 let currentPage = 1;
 const pageSize = 100;
 let endpointsToRender = [];
+let nucleiResults = [];
+let nmapResults = [];
 
 // ── 정렬 ────────────────────────────────────────────────
 
@@ -120,6 +122,7 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
     updateStat('statEpPost', postCount);
     updateStat('statEpOther', otherCount);
     updateStat('statEpAi', aiTargetCount);
+    updateStat('epCount', totalCount);
     const statEp = document.getElementById('statEndpoints');
     if (statEp) statEp.textContent = totalCount;
 
@@ -360,3 +363,133 @@ window.epInlineTab = function(idx, tab, btn) {
     btn.closest('.d-flex').querySelectorAll('.ep-tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 };
+
+// ── Nuclei 결과 관리 ─────────────────────────────────────────
+
+// ── 스캔 결과 탭 전환 ─────────────────────────────────────
+
+function switchScanResultTab(tab) {
+    document.querySelectorAll('.scan-result-tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.querySelector(`.scan-result-tab[data-tab="${tab}"]`);
+    if (activeTab) activeTab.classList.add('active');
+
+    const panels = { endpoints: 'endpointsTabPanel', vulns: 'vulnsTabPanel', nuclei: 'nucleiTabPanel', nmap: 'nmapTabPanel' };
+    Object.entries(panels).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = key === tab ? '' : 'none';
+    });
+}
+
+// ── Nuclei 결과 ──────────────────────────────────────────
+
+function addNucleiResult(result) {
+    if (!result) return;
+    const dup = nucleiResults.some(r => r.title === result.title && r.target === result.target);
+    if (!dup) {
+        nucleiResults.push(result);
+        renderNucleiResults();
+    }
+}
+
+function renderNucleiResults() {
+    const container = document.getElementById('nucleiResultsPanel');
+    const countEl = document.getElementById('nucleiCount');
+    if (!container) return;
+
+    if (countEl) countEl.textContent = nucleiResults.length;
+
+    if (nucleiResults.length === 0) {
+        container.innerHTML = '<div class="scan-result-empty">발견된 Nuclei 결과가 없습니다.</div>';
+        return;
+    }
+
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+    const sorted = [...nucleiResults].sort((a, b) =>
+        (severityOrder[(a.severity||'').toLowerCase()] ?? 999) - (severityOrder[(b.severity||'').toLowerCase()] ?? 999)
+    );
+
+    const sevColor = { critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#10b981', info: '#6366f1' };
+    let html = '';
+    sorted.forEach(result => {
+        const sev = (result.severity || 'info').toLowerCase();
+        const color = sevColor[sev] || '#94a3b8';
+        html += `
+            <div class="scan-result-card" style="border-left:3px solid ${color};">
+                <div class="scan-result-card-header">
+                    <div>
+                        <div class="scan-result-title">${result.title || 'Unknown'}</div>
+                        <div class="scan-result-sub">${result.target || ''}</div>
+                    </div>
+                    <span class="sev-badge" style="background:${color}22;color:${color};">${sev.toUpperCase()}</span>
+                </div>
+                ${result.description ? `<div class="scan-result-desc">${result.description}</div>` : ''}
+                ${result.reference ? `<a href="${result.reference}" target="_blank" class="scan-result-ref">Reference ↗</a>` : ''}
+            </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ── Nmap 결과 ─────────────────────────────────────────────
+
+function addNmapResult(result) {
+    if (!result) return;
+    const dup = nmapResults.some(r => r.host === result.host && r.port === result.port && r.protocol === result.protocol);
+    if (!dup) {
+        nmapResults.push(result);
+        renderNmapResults();
+    }
+}
+
+function renderNmapResults() {
+    const container = document.getElementById('nmapResultsPanel');
+    const countEl = document.getElementById('nmapCount');
+    if (!container) return;
+
+    if (countEl) countEl.textContent = nmapResults.length;
+
+    const sid = (typeof currentProject !== 'undefined' && currentProject.id)
+        || localStorage.getItem('currentSessionId');
+
+    let tableHtml = '';
+    if (nmapResults.length === 0) {
+        tableHtml = '<div class="scan-result-empty">발견된 Nmap 결과가 없습니다.</div>';
+    } else {
+        const sorted = [...nmapResults].sort((a, b) => a.port - b.port);
+        const portColor = p => p <= 1024 ? '#f59e0b' : '#10b981';
+        tableHtml = '<table class="nmap-table"><thead><tr><th>Port</th><th>Protocol</th><th>Service</th><th>Product / Version</th><th>Host</th></tr></thead><tbody>';
+        sorted.forEach(r => {
+            const color = portColor(r.port);
+            const ver = [r.product, r.version, r.extrainfo].filter(Boolean).join(' ');
+            tableHtml += `<tr>
+                <td><span class="nmap-port" style="color:${color};">${r.port}</span></td>
+                <td><span class="nmap-proto">${r.protocol}</span></td>
+                <td style="color:#a5f3fc;font-weight:600;">${r.service || '-'}</td>
+                <td style="color:#cbd5e1;font-size:0.78rem;">${ver || '-'}</td>
+                <td style="color:#94a3b8;font-size:0.75rem;">${r.host}</td>
+            </tr>`;
+        });
+        tableHtml += '</tbody></table>';
+    }
+
+    container.innerHTML = tableHtml;
+
+    // Fetch and display nmap/report.txt below the table
+    if (sid) {
+        const reportBox = document.createElement('div');
+        reportBox.id = 'nmapReportBox';
+        reportBox.style.cssText = 'margin-top:12px;';
+        container.appendChild(reportBox);
+
+        fetch(`${typeof API_BASE !== 'undefined' ? API_BASE : ''}/api/history/${sid}/text/nmap/report.txt`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success' && data.content) {
+                    reportBox.innerHTML = `<div style="background:var(--bg-card,#1e293b);border:1px solid var(--border,#334155);border-radius:6px;padding:12px 14px;margin-top:4px;">
+                        <div style="color:var(--text-muted,#94a3b8);font-size:0.72rem;margin-bottom:6px;font-weight:600;letter-spacing:.05em;">NMAP / REPORT.TXT</div>
+                        <pre style="margin:0;color:#e2e8f0;font-family:monospace;font-size:0.78rem;white-space:pre-wrap;word-break:break-all;">${data.content.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                    </div>`;
+                }
+            })
+            .catch(() => {});
+    }
+}

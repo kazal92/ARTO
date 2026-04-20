@@ -69,21 +69,33 @@ async def run_command_stream(command: str, log_file: Optional[str] = None):
         )
         _async_procs.add(proc)
 
-        if log_file:
-            with open(log_file, "w", encoding="utf-8") as f:
-                f.write(f"$ {command}\n")
+        log_fh = open(log_file, "w", encoding="utf-8") if log_file else None
+        try:
+            if log_fh:
+                log_fh.write(f"$ {command}\n")
 
-        while True:
-            line_bytes = await proc.stdout.readline()
-            if not line_bytes:
-                break
-            line_str = line_bytes.decode('utf-8', errors='ignore')
-
-            if log_file:
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(line_str)
-
-            yield line_str
+            # readline()은 asyncio 기본 버퍼(64KB)를 초과하는 줄에서 LimitOverrunError 발생
+            # → 64KB 청크 단위로 읽고 수동으로 개행 분리
+            buf = b""
+            while True:
+                chunk = await proc.stdout.read(65536)
+                if not chunk:
+                    if buf:
+                        line_str = buf.decode("utf-8", errors="ignore")
+                        if log_fh:
+                            log_fh.write(line_str)
+                        yield line_str
+                    break
+                buf += chunk
+                while b"\n" in buf:
+                    raw_line, buf = buf.split(b"\n", 1)
+                    line_str = raw_line.decode("utf-8", errors="ignore") + "\n"
+                    if log_fh:
+                        log_fh.write(line_str)
+                    yield line_str
+        finally:
+            if log_fh:
+                log_fh.close()
 
         await proc.wait()
         _async_procs.discard(proc)
@@ -219,6 +231,147 @@ async def run_ffuf(target_url: str, session_dir: str, headers: Dict = None, ffuf
         yield {"type": "progress", "msg": "[FFuF] 탐색을 마쳤으나 유효한 엔드포인트를 발견하지 못했습니다. (응답 코드 필터링 확인 필요)", "progress": 50}
     else:
         yield {"type": "progress", "msg": f"[FFuF] 탐색 종료. 총 {found_count}개의 유효 경로를 확보했습니다.", "progress": 50}
+
+async def run_nuclei(target_url: str, session_dir: str, headers: Dict = None, nuclei_options: str = ''):
+    """Nuclei를 사용하여 취약점을 스캔합니다."""
+    tool_dir = os.path.join(session_dir, "nuclei")
+    os.makedirs(tool_dir, exist_ok=True)
+    raw_log_path = os.path.join(tool_dir, "raw_output.txt")
+    jsonl_path = os.path.join(tool_dir, "findings.jsonl")
+
+    extra_opts = nuclei_options.strip() if nuclei_options else "-severity medium,high,critical -rl 100 -c 25"
+
+    # -jsonl은 stdout에 거대한 JSON 줄을 출력해 LimitOverrunError를 유발하므로
+    # stdout에는 일반 텍스트(-stats), 결과는 파일(-o)에만 저장
+    cmd = f"nuclei -u {target_url} -o {jsonl_path} -jsonl -nc -silent {extra_opts}"
+    if headers:
+        for k, v in headers.items():
+            cmd += f' -H "{k}: {v}"'
+
+    yield {"type": "command", "cmd": cmd}
+
+    # stdout 진행 메시지만 수집 (JSON 줄은 파일에 저장되므로 파싱하지 않음)
+    async for line in run_command_stream(cmd, log_file=raw_log_path):
+        line = line.strip()
+        if not line:
+            continue
+        # JSON 줄은 건너뜀 (파일에서 나중에 파싱)
+        if line.startswith("{") or line.startswith("["):
+            continue
+        yield {"type": "progress", "msg": f"[Nuclei] {line}", "progress": 30}
+
+    # 스캔 완료 후 결과 파일 파싱
+    found_count = 0
+    if os.path.exists(jsonl_path):
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for raw_line in f:
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                try:
+                    data = json.loads(raw_line)
+                    info = data.get("info", {})
+                    classification = info.get("classification") or {}
+                    cwe_list = classification.get("cwe-id") or []
+                    cwe = cwe_list[0] if cwe_list else ""
+                    severity = info.get("severity", "info").upper()
+                    finding = {
+                        "title": info.get("name", data.get("template-id", "Unknown")),
+                        "severity": severity if severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW") else "INFO",
+                        "target": data.get("matched-at", target_url),
+                        "description": info.get("description", ""),
+                        "evidence": (data.get("curl-command") or data.get("request") or "")[:1000],
+                        "steps": f"1. 재현 명령어:\n```\n{data.get('curl-command', '')}\n```",
+                        "recommendation": "",
+                        "cwe": cwe,
+                        "ttp": "",
+                        "owasp": "",
+                        "confidence": 90,
+                        "verified": True,
+                        "source": "Nuclei",
+                        "template_id": data.get("template-id", ""),
+                        "tags": info.get("tags", []),
+                    }
+                    found_count += 1
+                    yield {"type": "finding", "data": finding}
+                    yield {"type": "progress", "msg": f"[Nuclei] 발견: {finding['title']} [{finding['severity']}] @ {finding['target']}", "progress": 80}
+                except json.JSONDecodeError:
+                    pass
+
+    msg = f"[Nuclei] 스캔 완료: {found_count}개의 취약점 발견" if found_count else "[Nuclei] 스캔 완료: 발견된 취약점 없음"
+    yield {"type": "progress", "msg": msg, "progress": 100}
+    yield {"type": "result", "count": found_count}
+
+
+async def run_nmap(target_url: str, session_dir: str, nmap_options: str = ''):
+    """Nmap을 사용하여 포트/서비스를 스캔합니다."""
+    import xml.etree.ElementTree as ET
+    from urllib.parse import urlparse
+
+    tool_dir = os.path.join(session_dir, "nmap")
+    os.makedirs(tool_dir, exist_ok=True)
+    raw_log_path = os.path.join(tool_dir, "raw_output.txt")
+    xml_path = os.path.join(tool_dir, "results.xml")
+
+    parsed = urlparse(target_url)
+    host = parsed.hostname or target_url
+
+    extra_opts = nmap_options.strip() if nmap_options else "-sV -T4 --open -p 1-10000"
+    cmd = f"nmap {extra_opts} -oX {xml_path} {host}"
+
+    yield {"type": "command", "cmd": cmd}
+
+    async for line in run_command_stream(cmd, log_file=raw_log_path):
+        line = line.strip()
+        if line and not line.startswith("Starting") and not line.startswith("Nmap scan"):
+            yield {"type": "progress", "msg": f"[Nmap] {line}", "progress": 50}
+
+    found_count = 0
+    if os.path.exists(xml_path):
+        try:
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+            for host_el in root.findall("host"):
+                status_el = host_el.find("status")
+                if status_el is None or status_el.get("state") != "up":
+                    continue
+                addr_el = host_el.find("address")
+                addr = addr_el.get("addr", host) if addr_el is not None else host
+                ports_el = host_el.find("ports")
+                if ports_el is None:
+                    continue
+                for port_el in ports_el.findall("port"):
+                    state_el = port_el.find("state")
+                    if state_el is None or state_el.get("state") != "open":
+                        continue
+                    port_num = port_el.get("portid", "?")
+                    protocol = port_el.get("protocol", "tcp")
+                    svc = port_el.find("service")
+                    service_name = svc.get("name", "") if svc is not None else ""
+                    product = svc.get("product", "") if svc is not None else ""
+                    version = svc.get("version", "") if svc is not None else ""
+                    extrainfo = svc.get("extrainfo", "") if svc is not None else ""
+                    finding = {
+                        "host": addr,
+                        "port": int(port_num) if port_num.isdigit() else port_num,
+                        "protocol": protocol,
+                        "service": service_name,
+                        "product": product,
+                        "version": version,
+                        "extrainfo": extrainfo,
+                        "state": "open",
+                        "target": target_url,
+                    }
+                    found_count += 1
+                    yield {"type": "finding", "data": finding}
+                    yield {"type": "progress", "msg": f"[Nmap] {addr}:{port_num}/{protocol} {service_name} {product} {version}", "progress": 70}
+        except Exception as e:
+            yield {"type": "progress", "msg": f"[Nmap] XML 파싱 오류: {str(e)}", "progress": 100}
+
+    msg = f"[Nmap] 스캔 완료: {found_count}개 포트 발견" if found_count else "[Nmap] 스캔 완료: 열린 포트 없음"
+    yield {"type": "progress", "msg": msg, "progress": 100}
+    yield {"type": "result", "count": found_count}
+
 
 def minimize_request_raw(raw: str) -> str:
     """분석에 불필요한 헤더를 제거하여 토큰을 절약합니다."""

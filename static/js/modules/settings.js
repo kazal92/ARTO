@@ -219,7 +219,9 @@ async function saveProjectInfo() {
         ffuf_wordlist: document.getElementById('ffufWordlist')?.value || '',
         enable_zap_spider: document.getElementById('enableZapSpider')?.checked ?? true,
         enable_ffuf: document.getElementById('enableFfuf')?.checked ?? true,
-        enable_deep_recon: document.getElementById('enableDeepRecon')?.checked ?? true
+        enable_deep_recon: document.getElementById('enableDeepRecon')?.checked ?? true,
+        enable_nuclei: document.getElementById('enableNuclei')?.checked ?? false,
+        enable_nmap: document.getElementById('enableNmap')?.checked ?? false
     };
 
     console.log('[saveProjectInfo] sessionId:', sessionId);
@@ -237,7 +239,12 @@ async function saveProjectInfo() {
 
         if (res.ok && data.status === 'success') {
             if (typeof appendLog === 'function') appendLog('프로젝트 정보가 저장되었습니다.', 'System');
-            alert('✓ 프로젝트 정보가 저장되었습니다.\n(새로고침 후 설정이 자동 로드됩니다)');
+            alert('✓ 프로젝트 정보가 저장되었습니다.');
+
+            // 설정 저장 후 프로젝트를 다시 로드해서 UI 즉시 반영
+            if (typeof selectProject === 'function' && sessionId) {
+                setTimeout(() => selectProject(sessionId), 500);
+            }
         } else {
             alert('저장 실패: ' + (data.message || '알 수 없는 오류'));
         }
