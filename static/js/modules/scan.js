@@ -45,7 +45,22 @@ async function startScan() {
     if (!url || url === "http://local_workspace") return alert("유효한 타겟 URL을 입력해 주세요.");
 
     document.getElementById('logWindow').innerHTML = "";
-    appendLog(`타겟 프로젝트[${projectName || url}] 스캔을 준비합니다...`, "System");
+
+    // 모듈 설정 요약
+    const recon = [];
+    const extra = [];
+    const zap = document.getElementById('enableZapSpider');
+    const ffuf = document.getElementById('enableFfuf');
+    const deep = document.getElementById('enableDeepRecon');
+    const nuclei = document.getElementById('enableNuclei');
+    const nmap = document.getElementById('enableNmap');
+
+    if (zap?.checked || (window._projectSettings?.enable_zap_spider && !zap)) recon.push('ZAP');
+    if (ffuf?.checked !== false) recon.push('FFuF');
+    if ((deep?.checked !== false) && (ffuf?.checked || !ffuf)) recon.push('(recursive)');
+    if (nuclei?.checked || (window._projectSettings?.enable_nuclei && !nuclei)) extra.push('Nuclei');
+    if (nmap?.checked || (window._projectSettings?.enable_nmap && !nmap)) extra.push('Nmap');
+
     document.getElementById('vulnsTableBody').innerHTML = '<tr><td colspan="5" class="empty-state">스캔 프로세스를 시작합니다...</td></tr>';
     document.getElementById('endpointsTableBody').innerHTML = '<tr><td colspan="8" class="empty-state">엔드포인트 자산 수집 중...</td></tr>';
     aiCardsData = [];
@@ -77,6 +92,18 @@ async function startScan() {
     }
 
     try {
+        // ── 도구 활성화 상태 읽기 (체크박스 우선, 없으면 저장된 설정 사용, 둘 다 없으면 기본값) ──
+        const getScanOption = (checkboxId, fallbackKey, defaultVal) => {
+            const elem = document.getElementById(checkboxId);
+            if (elem) return elem.checked;
+            // 저장된 프로젝트 설정이 있으면 사용
+            const sessionId = currentProject.id || localStorage.getItem('currentSessionId');
+            if (window._projectSettings && window._projectSettings[fallbackKey] !== undefined) {
+                return window._projectSettings[fallbackKey];
+            }
+            return defaultVal;
+        };
+
         const res = await fetch(`${API_BASE}/api/scan`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -87,11 +114,11 @@ async function startScan() {
                 headers: headers,
                 ffuf_options: document.getElementById('ffufOptions') ? document.getElementById('ffufOptions').value.trim() : '',
                 ffuf_wordlist: document.getElementById('ffufWordlist') ? document.getElementById('ffufWordlist').value : '',
-                enable_zap_spider: document.getElementById('enableZapSpider') ? document.getElementById('enableZapSpider').checked : true,
-                enable_ffuf: document.getElementById('enableFfuf') ? document.getElementById('enableFfuf').checked : true,
-                enable_deep_recon: document.getElementById('enableDeepRecon') ? document.getElementById('enableDeepRecon').checked : true,
-                enable_nuclei: document.getElementById('enableNuclei') ? document.getElementById('enableNuclei').checked : false,
-                enable_nmap: document.getElementById('enableNmap') ? document.getElementById('enableNmap').checked : false,
+                enable_zap_spider: getScanOption('enableZapSpider', 'enable_zap_spider', false),
+                enable_ffuf: getScanOption('enableFfuf', 'enable_ffuf', true),
+                enable_deep_recon: getScanOption('enableDeepRecon', 'enable_deep_recon', true),
+                enable_nuclei: getScanOption('enableNuclei', 'enable_nuclei', false),
+                enable_nmap: getScanOption('enableNmap', 'enable_nmap', false),
                 ai_config: {
                     type: document.getElementById('aiType').value,
                     api_key: document.getElementById('aiType').value === 'gemini'
@@ -171,7 +198,6 @@ async function startScan() {
                             stopZapPolling();
                             allEndpoints = data.data.endpoints || [];
                             renderEndpoints(allEndpoints);
-                            appendLog("정찰 단계가 완료되었습니다. AI 분석 엔진을 가동합니다.", "System");
                         }
                         if (data.type === "ai_card") {
                             aiCardsData.push(data.data);
@@ -246,7 +272,7 @@ async function pollZapHistory() {
 
             data.messages.forEach(m => {
                 let url = m.uri || m.url || '';
-                
+
                 // [보강] 만약 uri 필드가 없으면 requestHeader에서 추출 시도
                 if (!url && m.requestHeader) {
                     const firstLine = m.requestHeader.split('\n')[0].trim();
@@ -397,7 +423,7 @@ async function loadZapHistory() {
                             const parsed = new URL(ep.url);
                             zapTarget = `${parsed.protocol}//${parsed.host}`;
                             break;
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                 }
                 const saveRes = await fetch(`${API_BASE}/api/session/${sessionId}/save_recon_map`, {
@@ -504,7 +530,7 @@ async function startAiScan(sessionId) {
                         if (statText) statText.innerHTML = `<i class="fa-solid fa-check-circle text-success me-2"></i>AI 분석 완료`;
                         updateScanConfigButton(false);
                     }
-                } catch {}
+                } catch { }
             }
         }
     } catch (e) {

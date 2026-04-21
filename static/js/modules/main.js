@@ -66,6 +66,7 @@ async function loadSession(sessionId) {
         const infoJson = await resInfo.json();
         if (infoJson.status === "success") {
             const info = JSON.parse(infoJson.content);
+            window._projectSettings = info; // 전역 캐시: 체크박스 없을 때 폴백용
             currentProject.name = info.project_name || "";
             currentProject.target = info.target || "";
 

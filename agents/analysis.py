@@ -197,9 +197,9 @@ async def run_analysis_agent(
         return
 
     local_client, local_model, _msg = _resolve_client(ai_config)
-    yield stream_log(session_dir, _msg, "AI")
+    yield stream_log(session_dir, _msg, "ai")
 
-    yield stream_log(session_dir, "정찰 데이터 기반 분석 대상 선별 및 전처리 시작", "AI", 80)
+    yield stream_log(session_dir, "Preparing endpoints for analysis...", "ai", 10)
 
     all_requests = []
 
@@ -227,7 +227,7 @@ async def run_analysis_agent(
         })
 
     if not all_requests:
-        yield stream_log(session_dir, "분석 가능한 데이터가 없어 분석을 중단합니다.", "AI", 100)
+        yield stream_log(session_dir, "No endpoints to analyze (empty recon)", "ai", 100, 'warn')
         return
 
     if not user_specified:
@@ -280,9 +280,12 @@ async def run_analysis_agent(
     if current_batch:
         batches.append(current_batch)
 
-    yield stream_log(session_dir, f"AI 분석 엔진 가동: {len(all_requests)}개의 타겟을 {len(batches)}개의 배치로 그룹화하여 처리를 시작합니다.", "AI", 85)
-    for i, b in enumerate(batches):
-        yield stream_log(session_dir, f"Batch #{i+1} 가동 준비 완료: {len(b)}개의 요청 포함", "AI")
+    yield stream_log(
+        session_dir,
+        f"AI analysis: {len(all_requests)} endpoints in {len(batches)} batch(es)",
+        "ai",
+        20
+    )
 
     all_findings = []
     seen_finding_keys: set = set()
@@ -305,7 +308,8 @@ async def run_analysis_agent(
             if is_cancelled(session_dir):
                 break
             save_tool_result(session_dir, f"ai_input_batch_{i+1}", batch)
-            yield stream_log(session_dir, f"AI 분석 배치 {i+1}/{len(batches)} 처리 중...", "AI", 85 + int((i / len(batches)) * 10))
+            prog = 20 + int((i / len(batches)) * 70)
+            yield stream_log(session_dir, f"Batch {i+1}/{len(batches)}", "ai", prog)
 
             batch_str = json.dumps(batch, ensure_ascii=False)
             custom_prompt = (ai_config or {}).get('custom_prompt', '').strip()
@@ -405,13 +409,23 @@ async def run_analysis_agent(
                     save_tool_result(session_dir, "ai_findings", all_findings)
 
             except Exception as e:
-                yield stream_log(session_dir, f"배치 {i+1} 결과 처리 중 에러: {str(e)}", "AI")
+                yield stream_log(
+                    session_dir,
+                    f"Batch {i+1} error: {type(e).__name__}: {str(e)[:80]}",
+                    "ai",
+                    level='error'
+                )
     except Exception as e:
-        yield stream_log(session_dir, f"AI 분석 중 치명적 오류: {e}", "AI")
+        yield stream_log(
+            session_dir,
+            f"Fatal error: {type(e).__name__}: {str(e)[:100]}",
+            "ai",
+            level='error'
+        )
     else:
         if not is_cancelled(session_dir):
-            # 추가 공격 벡터 탐색 패스
-            yield stream_log(session_dir, "추가 공격 벡터 탐색 중... (1차 결과 기반 보완 분석)", "AI", 95)
+            # 추가 벡터 탐색
+            yield stream_log(session_dir, "Searching for additional attack vectors...", "ai", 90)
             scanned_urls = ai_target_list
             additional = await _find_additional_vectors(local_client, local_model, scanned_urls, all_findings)
 
@@ -425,29 +439,31 @@ async def run_analysis_agent(
                 seen_finding_keys.add(dup_key)
                 all_findings.append(f)
                 newly_added_extra += 1
-                yield stream_log(session_dir, f"추가 벡터 식별: '{f.get('title')}'", "System")
                 yield stream_custom(session_dir, {"type": "ai_card", "data": f})
 
             if newly_added_extra > 0:
-                yield stream_log(session_dir, f"추가 벡터 탐색 완료: {newly_added_extra}개 항목 추가됨", "AI")
-            else:
-                yield stream_log(session_dir, "추가 벡터 탐색 완료: 새로운 항목 없음", "AI")
+                yield stream_log(session_dir, f"Additional vectors: +{newly_added_extra}", "ai", 92)
 
-            # 최종 중복 제거 패스 (추가 벡터 탐색 완료 후)
+            # 중복 제거
             if len(all_findings) >= 2:
-                yield stream_log(session_dir, f"최종 중복 제거 패스 실행 중... ({len(all_findings)}개 항목 정리)", "AI", 97)
+                yield stream_log(session_dir, "Deduplicating findings...", "ai", 95)
                 before_count = len(all_findings)
                 all_findings = await _dedup_findings_with_ai(local_client, local_model, all_findings)
                 removed = before_count - len(all_findings)
                 if removed > 0:
-                    yield stream_log(session_dir, f"중복 제거 완료: {removed}개 항목 통합됨 ({len(all_findings)}개 남음)", "AI")
+                    yield stream_log(
+                        session_dir,
+                        f"Deduplicated: -{removed}, {len(all_findings)} remain",
+                        "ai",
+                        97
+                    )
 
     finally:
         save_tool_result(session_dir, "ai_findings", all_findings)
         new_count = len(all_findings) - prev_findings_count
         total_count = len(all_findings)
+        msg = f"Analysis complete: {total_count} findings"
         if prev_findings_count > 0:
-            yield stream_log(session_dir, f"보안 분석 완료: 이번 스캔에서 {new_count}개 신규 식별 (누적 총 {total_count}개).", "AI", 100)
-        else:
-            yield stream_log(session_dir, f"보안 분석 완료: 총 {total_count}개의 잠재적 취약점이 식별되었습니다.", "AI", 100)
+            msg += f" (+{new_count} new)"
+        yield stream_log(session_dir, msg, "ai", 100)
         yield stream_custom(session_dir, {"type": "scan_complete", "data": all_findings})

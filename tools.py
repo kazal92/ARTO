@@ -260,7 +260,7 @@ async def run_nuclei(target_url: str, session_dir: str, headers: Dict = None, nu
         # JSON 줄은 건너뜀 (파일에서 나중에 파싱)
         if line.startswith("{") or line.startswith("["):
             continue
-        yield {"type": "progress", "msg": f"[Nuclei] {line}", "progress": 30}
+        yield {"type": "progress", "msg": f" {line}", "progress": 30}
 
     # 스캔 완료 후 결과 파일 파싱
     found_count = 0
@@ -296,11 +296,10 @@ async def run_nuclei(target_url: str, session_dir: str, headers: Dict = None, nu
                     }
                     found_count += 1
                     yield {"type": "finding", "data": finding}
-                    yield {"type": "progress", "msg": f"[Nuclei] 발견: {finding['title']} [{finding['severity']}] @ {finding['target']}", "progress": 80}
                 except json.JSONDecodeError:
                     pass
 
-    msg = f"[Nuclei] 스캔 완료: {found_count}개의 취약점 발견" if found_count else "[Nuclei] 스캔 완료: 발견된 취약점 없음"
+    msg = f" 스캔 완료: {found_count}개의 취약점 발견" if found_count else " 스캔 완료: 발견된 취약점 없음"
     yield {"type": "progress", "msg": msg, "progress": 100}
     yield {"type": "result", "count": found_count}
 
@@ -326,7 +325,7 @@ async def run_nmap(target_url: str, session_dir: str, nmap_options: str = ''):
     async for line in run_command_stream(cmd, log_file=raw_log_path):
         line = line.strip()
         if line and not line.startswith("Starting") and not line.startswith("Nmap scan"):
-            yield {"type": "progress", "msg": f"[Nmap] {line}", "progress": 50}
+            yield {"type": "progress", "msg": f" {line}", "progress": 50}
 
     found_count = 0
     if os.path.exists(xml_path):
@@ -366,11 +365,11 @@ async def run_nmap(target_url: str, session_dir: str, nmap_options: str = ''):
                     }
                     found_count += 1
                     yield {"type": "finding", "data": finding}
-                    yield {"type": "progress", "msg": f"[Nmap] {addr}:{port_num}/{protocol} {service_name} {product} {version}", "progress": 70}
+                    yield {"type": "progress", "msg": f" {addr}:{port_num}/{protocol} {service_name} {product} {version}", "progress": 70}
         except Exception as e:
-            yield {"type": "progress", "msg": f"[Nmap] XML 파싱 오류: {str(e)}", "progress": 100}
+            yield {"type": "progress", "msg": f" XML 파싱 오류: {str(e)}", "progress": 100}
 
-    msg = f"[Nmap] 스캔 완료: {found_count}개 포트 발견" if found_count else "[Nmap] 스캔 완료: 열린 포트 없음"
+    msg = f" 스캔 완료: {found_count}개 포트 발견" if found_count else " 스캔 완료: 열린 포트 없음"
     yield {"type": "progress", "msg": msg, "progress": 100}
     yield {"type": "result", "count": found_count}
 

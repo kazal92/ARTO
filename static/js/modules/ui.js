@@ -47,10 +47,10 @@ function exitProjectMode(sectionId = 'section-projects') {
     if (typeof currentProject !== 'undefined') {
         currentProject = { id: null, name: null };
     }
-    
+
     // 2. 섹션 전환
     switchSection(sectionId);
-    
+
     // 3. UI 초기화
     const subPentestTools = document.getElementById('sub-pentest-tools');
     const subScan = document.getElementById('sub-scan');
@@ -70,7 +70,7 @@ function exitProjectMode(sectionId = 'section-projects') {
 
     const scanStatusText = document.getElementById('scanStatusText');
     if (scanStatusText) scanStatusText.innerHTML = '<i class="fa-solid fa-house-chimney text-muted me-2"></i>대기 중';
-    
+
     const progressBar = document.getElementById('progressBar');
     if (progressBar) progressBar.style.width = '0%';
 }
@@ -133,79 +133,158 @@ function closeDrawer() {
     if (backdrop) backdrop.classList.remove('open');
 }
 
-// ── 로그 창 (appendLog) ─────────────────────────────────
+// ── 로그 창 (appendLog v2) ─────────────────────────────
+// 설계:
+//   1) 소스(source)는 단일 정규화 맵으로 {뱃지 클래스, 한글 라벨}을 결정한다.
+//   2) 레벨(error/warn/ok/cmd/hit)은 메시지 내용과 소스로부터 별도 판정하여
+//      좌측 보더와 메시지 톤을 입힌다 — 뱃지와 독립적으로 동작한다.
+//   3) URL 디스커버리 라인([RECON]/[ZAP]/[FFUF]/상태코드 포함)은 구조화 렌더.
 
 let autoScroll = true;
 
-function appendLog(msg, source = "System") {
+const LOG_SOURCE_MAP = (() => {
+    const M = {
+        SYSTEM: { cls: 'log-src-system', label: 'SYSTEM' },
+        CORE: { cls: 'log-src-system', label: 'SYSTEM' },
+        RECON: { cls: 'log-src-recon', label: 'RECON' },
+        NETWORK: { cls: 'log-src-recon', label: 'RECON' },
+        ZAP: { cls: 'log-src-zap', label: 'ZAP' },
+        ZAP_SPIDER: { cls: 'log-src-zap', label: 'ZAP' },
+        FFUF: { cls: 'log-src-ffuf', label: 'FFUF' },
+        AI: { cls: 'log-src-ai', label: 'AI' },
+        AI_ANALYST: { cls: 'log-src-ai', label: 'AI' },
+        AI_ENGINE: { cls: 'log-src-ai', label: 'AI' },
+        TRIAGE: { cls: 'log-src-triage', label: '트리아지' },
+        SPECIALIST: { cls: 'log-src-spec', label: '전문가' },
+        AGENT: { cls: 'log-src-agent', label: 'AGENT' },
+        NUCLEI: { cls: 'log-src-nuclei', label: 'NUCLEI' },
+        NMAP: { cls: 'log-src-nmap', label: 'NMAP' },
+        COMMAND: { cls: 'log-src-cmd', label: 'SHELL' },
+        CMD: { cls: 'log-src-cmd', label: 'SHELL' },
+        SHELL: { cls: 'log-src-cmd', label: 'SHELL' },
+        ERROR: { cls: 'log-src-error', label: 'ERROR' },
+    };
+    return M;
+})();
+
+function _resolveLogSource(source) {
+    const key = (source || 'SYSTEM').toString().toUpperCase().replace(/[^A-Z_]/g, '');
+    if (LOG_SOURCE_MAP[key]) return LOG_SOURCE_MAP[key];
+    // 미등록 소스는 시스템 뱃지 + 원본 라벨 사용
+    return { cls: 'log-src-system', label: (source || 'SYSTEM').toString().toUpperCase().slice(0, 8) };
+}
+
+function _detectLogLevel(msg, sourceKey) {
+    const s = (msg || '').toString();
+    const u = s.toUpperCase();
+
+    if (sourceKey === 'COMMAND' || sourceKey === 'CMD' || sourceKey === 'SHELL') return 'cmd';
+
+    // 오류: 명시적 토큰 우선, 그리고 한글 키워드
+    if (/^\s*\[(ERR|ERROR|FAIL|FATAL)\]/i.test(s)) return 'error';
+    if (/(치명적|실패했|오류가|에러|예외)/.test(s)) return 'error';
+    if (/\b(FAILED|FATAL|CRITICAL|TRACEBACK|EXCEPTION)\b/.test(u)) return 'error';
+
+    // 경고
+    if (/^\s*\[(WARN|WARNING)\]/i.test(s)) return 'warn';
+    if (/(경고|주의)/.test(s)) return 'warn';
+
+    // 성공/완료
+    if (/^\s*\[(OK|DONE|SUCCESS)\]/i.test(s)) return 'ok';
+    if (/(완료되었|성공|저장 완료|분석 완료|스캔 완료)/.test(s)) return 'ok';
+    if (/\b(SUCCESS|COMPLETED|COMPLETE)\b/.test(u) && !u.includes('HTTP')) return 'ok';
+
+    // 디스커버리 히트
+    if (/^\[(FFUF|ZAP|RECON)\]/.test(s)) return 'hit';
+    if (/(식별|발견|탐지)/.test(s)) return 'hit';
+
+    return 'info';
+}
+
+function _escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[c]);
+}
+
+// 구조화 렌더러들 — 평문을 의미 있는 조각으로 분해한다.
+function _renderDiscoveryLine(msg) {
+    // 지원 포맷:
+    //   [FFUF] <METHOD> <URL> → <STATUS>
+    //   [FFUF] <URL>
+    //   [ZAP]  <URL>
+    //   [RECON] <METHOD> <URL>
+    const tagMatch = msg.match(/^\[(FFUF|ZAP|RECON)\]\s*(.*)$/);
+    if (!tagMatch) return null;
+    const tag = tagMatch[1];
+    const rest = tagMatch[2].trim();
+
+    // METHOD URL → STATUS
+    let m = rest.match(/^([A-Z]{3,7})\s+(https?:\/\/\S+)\s*(?:→|->)\s*(\S+)$/);
+    if (m) {
+        return `<span class="log-hit-tag">[${tag}]</span>`
+            + `<span class="log-hit-meta">${_escapeHtml(m[1])}</span> `
+            + `<span class="log-hit-url">${_escapeHtml(m[2])}</span>`
+            + `<span class="log-hit-arrow">→</span>`
+            + `<span class="log-hit-status">${_escapeHtml(m[3])}</span>`;
+    }
+    // METHOD URL
+    m = rest.match(/^([A-Z]{3,7})\s+(https?:\/\/\S+)$/);
+    if (m) {
+        return `<span class="log-hit-tag">[${tag}]</span>`
+            + `<span class="log-hit-meta">${_escapeHtml(m[1])}</span> `
+            + `<span class="log-hit-url">${_escapeHtml(m[2])}</span>`;
+    }
+    // URL only
+    m = rest.match(/^(https?:\/\/\S+)$/);
+    if (m) {
+        return `<span class="log-hit-tag">[${tag}]</span>`
+            + `<span class="log-hit-url">${_escapeHtml(m[1])}</span>`;
+    }
+    return null;
+}
+
+function _renderCommandLine(msg) {
+    const raw = (msg || '').toString();
+    const trimmed = raw.trimStart();
+    const body = trimmed.startsWith('$') ? trimmed.slice(1).trimStart() : trimmed;
+    return `<span class="log-cmd-prompt">$</span>${_escapeHtml(body)}`;
+}
+
+function appendLog(msg, source = 'System') {
     const win = document.getElementById('logWindow');
     if (!win) return;
+
+    const rawSource = (source || 'System').toString();
+    const sourceKey = rawSource.toUpperCase().replace(/[^A-Z_]/g, '');
+    const { cls: badgeClass, label: badgeLabel } = _resolveLogSource(rawSource);
+    const level = _detectLogLevel(msg, sourceKey);
+
+    // 메시지 본문 렌더
+    const safeMsg = (msg ?? '').toString();
+    let msgHtml;
+    if (level === 'cmd') {
+        msgHtml = _renderCommandLine(safeMsg);
+    } else {
+        const discovered = _renderDiscoveryLine(safeMsg);
+        msgHtml = discovered != null ? discovered : _escapeHtml(safeMsg);
+    }
+
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+
     const div = document.createElement('div');
-    div.className = "log-item";
-    div.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:3px;";
-
-    let badgeClass = "badge-core";
-    let badgeText = source.toUpperCase();
-    let msgColor = "var(--text-main)";
-    let prefix = "";
-
-    const s = source.toUpperCase();
-    if (s === "SYSTEM" || s === "CORE") {
-        badgeClass = "badge-core"; badgeText = "시스템"; msgColor = "var(--secondary)";
-    } else if (s === "RECON" || s === "NETWORK") {
-        badgeClass = "badge-recon"; badgeText = "정찰"; msgColor = "var(--info)";
-    } else if (["AI", "AI_ANALYST", "AI_ENGINE"].includes(s)) {
-        badgeClass = "badge-ai"; badgeText = "AI 분석"; msgColor = "var(--color-purple)";
-    } else if (["COMMAND", "CMD", "SHELL"].includes(s)) {
-        badgeClass = "badge-cmd"; badgeText = "쉘";
-        msgColor = "var(--high)";
-        // 메시지가 이미 $ 로 시작하면 접두사 생략
-        const _m = (msg || "").toString().trimStart();
-        if (!_m.startsWith('$')) {
-            prefix = '<span style="color:var(--high);margin-right:5px;">$</span>';
-        }
-    }
-
-    const safeMsg = (msg || "").toString();
-    const upperMsg = safeMsg.toUpperCase();
-    const isBoldMsg = safeMsg.includes('ZAP Spider 탐색 시작') || safeMsg.includes('FFuF 디렉토리/파일 퍼징');
-    const isFfufDiscovery = safeMsg.startsWith('[FFUF]');
-    const isZapDiscovery = safeMsg.startsWith('[ZAP]') && /^https?:\/\//.test(safeMsg.slice(5).trim());
-    const isErrorMsg = (upperMsg.includes("FAIL") || safeMsg.includes("실패") || safeMsg.includes("치명적"))
-        || (upperMsg.includes("ERROR") && !upperMsg.includes("HTTP") && !/\/[^\s]*ERROR[^\s]*/i.test(safeMsg));
-
-    const YELLOW = '#facc15';
-
-    let renderedMsg = msg;
-    if (isFfufDiscovery) {
-        const m = safeMsg.match(/^\[FFUF\]\s+(\w+)\s+(https?:\/\/\S+)\s*→\s*(\S+)$/);
-        if (m) {
-            renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[FFUF]</span> <span style="color:var(--text-muted);font-size:0.8rem;">${m[1]}</span> <span style="color:${YELLOW};font-family:monospace;">${m[2]}</span> <span style="color:var(--text-muted);">→</span> <span style="color:${YELLOW};font-weight:600;">${m[3]}</span>`;
-        } else {
-            renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[FFUF]</span> <span style="color:${YELLOW};font-family:monospace;">${safeMsg.slice(6).trim()}</span>`;
-        }
-    } else if (isZapDiscovery) {
-        const url = safeMsg.slice(5).trim();
-        renderedMsg = `<span style="color:${YELLOW};font-weight:700;">[ZAP]</span> <span style="color:${YELLOW};font-family:monospace;">${url}</span>`;
-    } else if (isErrorMsg) {
-        badgeClass = "badge-error"; badgeText = "오류"; msgColor = "var(--critical)";
-    } else if (upperMsg.includes("DISCOVERY") || upperMsg.includes("FOUND") || upperMsg.includes("식별")) {
-        if (s !== "RECON" && s !== "NETWORK") msgColor = "var(--high)";
-    } else if (upperMsg.includes("COMPLETE") || upperMsg.includes("성공") || upperMsg.includes("SUCCESS")) {
-        if (s !== "RECON" && s !== "NETWORK") msgColor = "var(--secondary)";
-    }
-
-    const timeStr = `<span class="log-time">${new Date().toLocaleTimeString('en-US', { hour12: false })}</span>`;
-    const badgeStr = `<span class="log-badge ${badgeClass}">${badgeText}</span>`;
-    const msgContent = (isFfufDiscovery || isZapDiscovery)
-        ? renderedMsg
-        : `${prefix}<span style="color:${msgColor};${isBoldMsg ? 'font-weight:700;' : ''}">${msg}</span>`;
-    div.innerHTML = `${timeStr}${badgeStr}<span class="log-msg" style="word-break:break-all;">${msgContent}</span>`;
+    div.className = `log-item log-lv-${level}`;
+    div.innerHTML =
+        `<span class="log-time">${hh}:${mm}:${ss}</span>`
+        + `<span class="log-badge ${badgeClass}">${_escapeHtml(badgeLabel)}</span>`
+        + `<span class="log-msg">${msgHtml}</span>`;
 
     win.appendChild(div);
     if (autoScroll) win.scrollTop = win.scrollHeight;
 
-    // 💾 실시간 로그 백업 (다른 섹션 이동했다가 돌아왔을 때 복원용)
     if (typeof logWindowBackup !== 'undefined') {
         logWindowBackup += div.outerHTML;
     }

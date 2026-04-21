@@ -217,11 +217,11 @@ async function saveProjectInfo() {
         },
         ffuf_options: document.getElementById('ffufOptions')?.value || '',
         ffuf_wordlist: document.getElementById('ffufWordlist')?.value || '',
-        enable_zap_spider: document.getElementById('enableZapSpider')?.checked ?? true,
-        enable_ffuf: document.getElementById('enableFfuf')?.checked ?? true,
-        enable_deep_recon: document.getElementById('enableDeepRecon')?.checked ?? true,
-        enable_nuclei: document.getElementById('enableNuclei')?.checked ?? false,
-        enable_nmap: document.getElementById('enableNmap')?.checked ?? false
+        enable_zap_spider: document.getElementById('enableZapSpider')?.checked ?? (window._projectSettings?.enable_zap_spider ?? false),
+        enable_ffuf: document.getElementById('enableFfuf')?.checked ?? (window._projectSettings?.enable_ffuf ?? true),
+        enable_deep_recon: document.getElementById('enableDeepRecon')?.checked ?? (window._projectSettings?.enable_deep_recon ?? true),
+        enable_nuclei: document.getElementById('enableNuclei')?.checked ?? (window._projectSettings?.enable_nuclei ?? false),
+        enable_nmap: document.getElementById('enableNmap')?.checked ?? (window._projectSettings?.enable_nmap ?? false)
     };
 
     console.log('[saveProjectInfo] sessionId:', sessionId);

@@ -23,7 +23,6 @@ function startNmapScan() {
     const nmapOptions = document.getElementById('nmapOptions')?.value?.trim()
         || '-sV -T4 --open -p 1-10000';
 
-    _nmapLog(`Nmap 스캔 요청: ${target} (${nmapOptions})`, 'Nmap');
     _nmapRunning = true;
     fetch(`${API_BASE}/api/nmap/run`, {
         method: 'POST',
@@ -43,7 +42,7 @@ function startNmapScan() {
                 parts.forEach(chunk => {
                     chunk.split('\n').forEach(line => {
                         if (line.startsWith('data: ')) {
-                            try { _nmapEvent(JSON.parse(line.slice(6))); } catch (_) {}
+                            try { _nmapEvent(JSON.parse(line.slice(6))); } catch (_) { }
                         }
                     });
                 });
@@ -57,24 +56,6 @@ function startNmapScan() {
     });
 }
 
-function _nmapEvent(data) {
-    const t = data.type;
-    if (t === 'log') {
-        _nmapLog(data.message, data.agent || 'Nmap');
-    } else if (t === 'nmap_finding' && data.data) {
-        const f = data.data;
-        _nmapLog(`[오픈] ${f.host}:${f.port}/${f.protocol} ${f.service} ${f.product} ${f.version}`.trim(), 'Nmap');
-        if (typeof addNmapResult === 'function') addNmapResult(f);
-    } else if (t === 'nmap_complete') {
-        _nmapDone();
-    }
-}
-
-function _nmapLog(msg, agent) {
-    if (typeof appendLog === 'function') {
-        appendLog(msg, agent || 'Nmap');
-    }
-}
 
 async function stopNmapScan() {
     const sid = (typeof currentProject !== 'undefined' ? currentProject.id : null)
@@ -86,7 +67,7 @@ async function stopNmapScan() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sid })
             });
-        } catch (_) {}
+        } catch (_) { }
     }
     _nmapLog('중단 요청이 전달되었습니다.', 'System');
     _nmapDone();
@@ -100,4 +81,29 @@ function _nmapDone() {
     // Nmap 완료 시 엔드포인트 탭 → Nmap 탭으로 자동 전환
     if (typeof switchScanResultTab === 'function') switchScanResultTab('nmap');
     if (typeof switchSection === 'function') switchSection('section-endpoints');
+}
+
+function _nmapEvent(data) {
+    const t = data.type;
+    if (t === 'log') {
+        // 일반 로그는 사용자 요청에 의해 콘솔 출력 최소화
+        // _nmapLog(data.message, data.agent || 'Nmap');
+    } else if (t === 'nmap_finding' && data.data) {
+        if (typeof addNmapResult === 'function') addNmapResult(data.data);
+    } else if (t === 'nmap_progress' || t === 'progress') {
+        if (data.progress !== undefined) {
+            const pBar = document.getElementById('progressBar');
+            const pText = document.getElementById('progressText');
+            if (pBar) pBar.style.width = data.progress + "%";
+            if (pText) pText.textContent = Math.floor(data.progress) + "%";
+        }
+    } else if (t === 'nmap_complete' || t === 'scan_complete') {
+        _nmapDone();
+    }
+}
+
+function _nmapLog(msg, agent) {
+    if (typeof appendLog === 'function') {
+        appendLog(msg, agent || 'Nmap');
+    }
 }

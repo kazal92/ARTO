@@ -18,7 +18,7 @@ _nmap_running_sessions: set = set()
 class NmapRequest(BaseModel):
     session_id: str
     target_url: str
-    nmap_options: str = "-sV -T4 --open -p 1-10000"
+    nmap_options: str = "-sS -sV"
 
     @field_validator("target_url")
     @classmethod
@@ -48,9 +48,6 @@ async def nmap_run(req: NmapRequest):
     async def run_task():
         findings = []
         try:
-            stream_log(session_dir, f"Nmap 스캔 시작: {req.target_url}", "Nmap", 0)
-            stream_log(session_dir, f"옵션: {req.nmap_options}", "Nmap", 5)
-
             async for update in run_nmap(req.target_url, session_dir, nmap_options=req.nmap_options):
                 if is_cancelled(session_dir):
                     stream_log(session_dir, "Nmap 스캔이 사용자에 의해 중단되었습니다.", "Nmap")
@@ -58,7 +55,9 @@ async def nmap_run(req: NmapRequest):
 
                 utype = update.get("type")
                 if utype == "progress":
-                    stream_log(session_dir, update["msg"], "Nmap", update.get("progress"))
+                    # 실시간 로그 콘솔에서 Nmap 출력 제거 (사용자 요청)
+                    # 대신 진행률 업데이트를 위해 custom stream 사용 (appendLog 호출 방지)
+                    stream_custom(session_dir, {"type": "nmap_progress", "progress": update.get("progress")})
                 elif utype == "command":
                     stream_log(session_dir, update["cmd"], "Command")
                 elif utype == "finding":
@@ -84,10 +83,11 @@ async def nmap_run(req: NmapRequest):
                 else:
                     rf.write("열린 포트 없음\n")
 
-            if findings:
-                stream_log(session_dir, f"Nmap 결과 {len(findings)}개 포트 저장 완료 → nmap/report.txt", "Nmap", 100)
-            else:
-                stream_log(session_dir, "Nmap 스캔 완료: 열린 포트 없음", "Nmap", 100)
+            # 스캔 완료 메시지도 로그 콘솔에는 남기지 않음
+            # if findings:
+            #     stream_log(session_dir, f"Nmap 결과 {len(findings)}개 포트 저장 완료 → nmap/report.txt", "Nmap", 100)
+            # else:
+            #     stream_log(session_dir, "Nmap 스캔 완료: 열린 포트 없음", "Nmap", 100)
 
         except Exception as e:
             stream_log(session_dir, f"Nmap 오류: {str(e)}", "Nmap")

@@ -26,7 +26,9 @@
                     <i class="fa-solid fa-shield-halved gradient-text" style="font-size: 1.5rem;"></i>
                     <div>
                         <div style="font-weight: 800; font-size: 1.15rem; line-height: 1.1;">ARTO</div>
-                        <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 500; letter-spacing: 1px;">v2.0 SECURITY</div>
+                        <div
+                            style="font-size: 0.65rem; color: var(--text-muted); font-weight: 500; letter-spacing: 1px;">
+                            v2.0 SECURITY</div>
                     </div>
                 </div>
             </div>
@@ -38,8 +40,7 @@
                 </div>
 
                 <!-- PENTEST PROJECT 탭 (클릭 → 프로젝트 목록) -->
-                <div class="menu-item mt-2" data-sec="section-projects"
-                    onclick="exitProjectMode('section-projects');">
+                <div class="menu-item mt-2" data-sec="section-projects" onclick="exitProjectMode('section-projects');">
                     <i class="fa-solid fa-shield-halved" style="color:#f59e0b;"></i>
                     <span style="font-weight:700;">PENTEST PROJECT</span>
                 </div>
@@ -47,46 +48,44 @@
                 <!-- 프로젝트 선택 후 표시되는 도구 목록 (기본 숨김) -->
                 <div id="sub-pentest-tools" class="sub-menu-list" style="display:none;">
                     <!-- 현재 프로젝트 표시 -->
-                    <div id="currentProjectLabel" style="padding: 4px 12px 4px 1.5rem; font-size:0.72rem; color:#f59e0b; font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+                    <div id="currentProjectLabel"
+                        style="padding: 4px 12px 4px 1.5rem; font-size:0.72rem; color:#f59e0b; font-family:monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    </div>
 
                     <!-- 취약점 스캐너 -->
-                    <div class="menu-item" data-sec="section-overview"
-                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
-                        onclick="switchSection('section-overview');">
-                        <i class="fa-solid fa-radar text-warning" style="font-size: 0.85rem;"></i><span>취약점 스캐너</span>
-                    </div>
+
                     <div id="sub-scan" class="sub-menu-list" style="display: none;">
                         <div class="menu-item" data-sec="section-overview" onclick="switchSection('section-overview')"
-                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                            style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
                             <i class="fa-solid fa-chart-pie" style="font-size: 0.85rem;"></i><span>스캔 대상</span>
                         </div>
                         <div class="menu-item" data-sec="section-endpoints" onclick="switchSection('section-endpoints')"
-                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                            <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>엔드포인트 분석</span>
+                            style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
+                            <i class="fa-solid fa-circle-nodes" style="font-size: 0.85rem;"></i><span>결과 출력</span>
                         </div>
-                        <div class="menu-item" data-sec="section-vulns" onclick="switchSection('section-endpoints'); switchScanResultTab('vulns');"
-                            style="padding-left: 3.2rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                            <i class="fa-solid fa-brain" style="font-size: 0.85rem; color:#a78bfa;"></i><span>AI 분석</span>
+                        <!-- 에이전트 점검 -->
+                        <div class="menu-item" data-sec="section-agent"
+                            style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;"
+                            onclick="switchSection('section-agent'); initAgent();">
+                            <i class="fa-solid fa-robot" style="color:#a78bfa; font-size: 0.85rem;"></i><span>에이전트
+                                점검</span>
                         </div>
                     </div>
 
-                    <!-- 에이전트 점검 -->
-                    <div class="menu-item" data-sec="section-agent"
-                        style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
-                        onclick="switchSection('section-agent'); initAgent();">
-                        <i class="fa-solid fa-robot" style="color:#a78bfa; font-size: 0.85rem;"></i><span>에이전트 점검</span>
-                    </div>
+
 
 
                     <!-- 웹 터미널 -->
                     <div class="menu-item" data-sec="section-terminal"
                         style="padding-left: 2.3rem !important; font-size: 0.85rem; margin: 2px 8px;"
                         onclick="switchSection('section-terminal'); startTerminal();">
-                        <i class="fa-solid fa-terminal" style="color:#34d399; font-size: 0.85rem;"></i><span>웹 터미널</span>
+                        <i class="fa-solid fa-terminal" style="color:#34d399; font-size: 0.85rem;"></i><span>웹
+                            터미널</span>
                     </div>
 
                     <!-- 프로젝트 나가기 -->
-                    <div class="menu-item" style="padding-left: 2.3rem !important; font-size: 0.78rem; margin: 2px 8px; opacity:0.5;"
+                    <div class="menu-item"
+                        style="padding-left: 2.3rem !important; font-size: 0.78rem; margin: 2px 8px; opacity:0.5;"
                         onclick="exitProjectMode('section-projects');">
                         <i class="fa-solid fa-arrow-left" style="font-size: 0.8rem;"></i><span>프로젝트 목록</span>
                     </div>
@@ -112,7 +111,8 @@
                     </div>
                     <div class="menu-item" data-sec="section-dork" onclick="switchSection('section-dork')"
                         style="padding-left: 2.3rem !important; font-size: 0.8rem; margin: 2px 8px;">
-                        <i class="fa-brands fa-google text-success" style="font-size: 0.85rem;"></i><span>Google Dork</span>
+                        <i class="fa-brands fa-google text-success" style="font-size: 0.85rem;"></i><span>Google
+                            Dork</span>
                     </div>
                 </div>
             </div>
@@ -150,25 +150,33 @@
 
             <!-- ─── 에이전트 점검 (웹터미널) ─────────────────────────────── -->
             <!-- ── 에이전트 점검 ── -->
-            <div id="section-agent" class="content-section flex-section" style="padding:0; flex-direction:column; height:100vh; overflow:hidden;">
+            <div id="section-agent" class="content-section flex-section"
+                style="padding:0; flex-direction:column; height:100vh; overflow:hidden;">
                 <!-- 헤더 컨트롤 -->
-                <div style="padding:10px 16px; border-bottom:1px solid var(--border-color); flex-shrink:0; background:var(--card-bg);">
+                <div
+                    style="padding:10px 16px; border-bottom:1px solid var(--border-color); flex-shrink:0; background:var(--card-bg);">
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <i class="fa-solid fa-robot" style="color:#a78bfa;"></i>
                         <span style="font-weight:700; font-size:0.9rem;">AI 에이전트 점검</span>
                         <span class="agent-status-dot dot-idle" id="agentStatusDot"></span>
                         <span id="agentStatusText" style="font-size:0.78rem; color:var(--text-muted);">대기 중</span>
-                        <span id="agentFindingBadge" style="font-size:0.72rem; background:#7c3aed22; color:#a78bfa; border:1px solid #7c3aed55; border-radius:4px; padding:1px 8px;">취약점 0건</span>
+                        <span id="agentFindingBadge"
+                            style="font-size:0.72rem; background:#7c3aed22; color:#a78bfa; border:1px solid #7c3aed55; border-radius:4px; padding:1px 8px;">취약점
+                            0건</span>
                         <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
                             <input id="agentTargetInput" type="text" class="form-control form-control-sm"
-                                placeholder="https://target.com" style="width:240px; font-size:0.8rem; font-family:monospace;">
-                            <button id="agentStartBtn" class="btn btn-sm btn-outline-success" onclick="startAgent()" style="font-size:0.78rem;">
+                                placeholder="https://target.com"
+                                style="width:240px; font-size:0.8rem; font-family:monospace;">
+                            <button id="agentStartBtn" class="btn btn-sm btn-outline-success" onclick="startAgent()"
+                                style="font-size:0.78rem;">
                                 <i class="fa-solid fa-play me-1"></i>에이전트 시작
                             </button>
-                            <button id="agentStopBtn" class="btn btn-sm btn-outline-danger" onclick="stopAgent()" disabled style="font-size:0.78rem;">
+                            <button id="agentStopBtn" class="btn btn-sm btn-outline-danger" onclick="stopAgent()"
+                                disabled style="font-size:0.78rem;">
                                 <i class="fa-solid fa-stop me-1"></i>중단
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="clearAgentOutput()" style="font-size:0.78rem;">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearAgentOutput()"
+                                style="font-size:0.78rem;">
                                 <i class="fa-solid fa-trash me-1"></i>초기화
                             </button>
                         </div>
@@ -176,34 +184,41 @@
                 </div>
 
                 <!-- 에이전트 출력창 -->
-                <div id="agentOutput" style="flex:1; overflow-y:auto; padding:12px 16px; font-family:'Fira Code','Cascadia Code',monospace; font-size:0.82rem; background:#0d0f17; color:#e2e8f0; line-height:1.6;"></div>
+                <div id="agentOutput"
+                    style="flex:1; overflow-y:auto; padding:12px 16px; font-family:'Fira Code','Cascadia Code',monospace; font-size:0.82rem; background:#0d0f17; color:#e2e8f0; line-height:1.6;">
+                </div>
 
                 <!-- 사용자 메시지 입력 -->
-                <div style="border-top:1px solid var(--border-color); padding:8px 12px; background:var(--card-bg); flex-shrink:0; display:flex; gap:8px; align-items:flex-end;">
+                <div
+                    style="border-top:1px solid var(--border-color); padding:8px 12px; background:var(--card-bg); flex-shrink:0; display:flex; gap:8px; align-items:flex-end;">
                     <textarea id="agentMsgInput" class="form-control form-control-sm"
                         placeholder="에이전트에게 지시... (예: /admin 경로 집중해서 봐, 파라미터 id에 SQLi 시도해봐)"
                         style="font-size:0.82rem; resize:none; height:38px; font-family:monospace; background:var(--input-bg); color:var(--text-main); border-color:var(--border-color);"
-                        onkeydown="agentMsgKeydown(event)"
-                        oninput="_agentResizeInput(this)"></textarea>
-                    <button class="btn btn-sm btn-outline-primary" onclick="sendAgentMessage()" style="font-size:0.78rem; white-space:nowrap;">
+                        onkeydown="agentMsgKeydown(event)" oninput="_agentResizeInput(this)"></textarea>
+                    <button class="btn btn-sm btn-outline-primary" onclick="sendAgentMessage()"
+                        style="font-size:0.78rem; white-space:nowrap;">
                         <i class="fa-solid fa-paper-plane me-1"></i>전송
                     </button>
                 </div>
             </div>
 
             <!-- ── 웹 터미널 ── -->
-            <div id="section-terminal" class="content-section flex-section" style="padding:0; flex-direction:column; height:100vh;">
-                <div style="padding:10px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-color); flex-shrink:0;">
+            <div id="section-terminal" class="content-section flex-section"
+                style="padding:0; flex-direction:column; height:100vh;">
+                <div
+                    style="padding:10px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-color); flex-shrink:0;">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fa-solid fa-terminal" style="color:#34d399; font-size:1.1rem;"></i>
                         <span style="font-weight:700; font-size:0.95rem;">웹 터미널</span>
                         <span style="font-size:0.72rem; color:var(--text-muted);">zsh @ kali</span>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-warning" onclick="termKillSession()" style="font-size:0.75rem;">
+                        <button class="btn btn-sm btn-outline-warning" onclick="termKillSession()"
+                            style="font-size:0.75rem;">
                             <i class="fa-solid fa-rotate me-1"></i>세션 재시작
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="termDisconnect()" style="font-size:0.75rem;">
+                        <button class="btn btn-sm btn-outline-danger" onclick="termDisconnect()"
+                            style="font-size:0.75rem;">
                             <i class="fa-solid fa-plug-circle-xmark me-1"></i>연결 종료
                         </button>
                     </div>
@@ -232,8 +247,8 @@
                 <!-- 🔍 정렬 UI 추가 -->
                 <div class="d-flex justify-content-end mb-2">
                     <select class="form-select form-select-sm"
-                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);" id="sortPrecheckProjects"
-                        onchange="sortAndRenderProjects('precheck')">
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                        id="sortPrecheckProjects" onchange="sortAndRenderProjects('precheck')">
                         <option value="date_desc">최신 생성순</option>
                         <option value="date_asc">오래된 생성순</option>
                         <option value="name_asc">이름순 (A-Z)</option>
@@ -564,8 +579,8 @@
                 <!-- 🔍 정렬 UI 추가 -->
                 <div class="d-flex justify-content-end mb-2">
                     <select class="form-select form-select-sm"
-                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);" id="sortProjects"
-                        onchange="sortAndRenderProjects('scan')">
+                        style="width: 130px; font-weight: 500; font-size: 0.78rem; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color);"
+                        id="sortProjects" onchange="sortAndRenderProjects('scan')">
                         <option value="date_desc">최신 생성순</option>
                         <option value="date_asc">오래된 생성순</option>
                         <option value="name_asc">이름순 (A-Z)</option>
@@ -598,13 +613,15 @@
                             <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
                                 <i class="fa-solid fa-broom me-1"></i> 히스토리 초기화
                             </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="saveProjectInfo()" title="현재 설정을 project_info.json에 저장">
+                            <button class="btn btn-sm btn-outline-primary" onclick="saveProjectInfo()"
+                                title="현재 설정을 project_info.json에 저장">
                                 <i class="fa-solid fa-floppy-disk me-1"></i> 설정 저장
                             </button>
                             <button class="btn btn-sm btn-success" id="startBtn" onclick="startScan()">
                                 <i class="fa-solid fa-play me-1"></i> 스캔 시작
                             </button>
-                            <button class="btn btn-sm btn-danger" id="stopBtn" onclick="stopScan()" style="display:none;">
+                            <button class="btn btn-sm btn-danger" id="stopBtn" onclick="stopScan()"
+                                style="display:none;">
                                 <i class="fa-solid fa-stop me-1"></i> 정지
                             </button>
                         </div>
@@ -626,11 +643,13 @@
                             oninput="localStorage.setItem('customHeaders', this.value)"></textarea>
 
                         <!-- ffuf 옵션 (체크시 표시) -->
-                        <div id="ffufOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                        <div id="ffufOptionsPanel"
+                            style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
                             <div class="d-flex gap-2">
                                 <div style="flex:0 0 22%;">
                                     <label class="form-label text-muted small fw-bold">워드리스트</label>
-                                    <select id="ffufWordlist" class="form-select" style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.95rem; cursor:pointer;">
+                                    <select id="ffufWordlist" class="form-select"
+                                        style="background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.95rem; cursor:pointer;">
                                         <option value="wordlist_last.txt">wordlist_last.txt</option>
                                     </select>
                                 </div>
@@ -644,48 +663,76 @@
                         </div>
 
                         <!-- Nuclei 옵션 (체크시 표시) -->
-                        <div id="nucleiOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                        <div id="nucleiOptionsPanel"
+                            style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
                             <label class="form-label text-muted small fw-bold">Nuclei 스캔 옵션</label>
-                            <input type="text" id="nucleiOptions" class="glass-input w-100"
-                                value="-severity medium,high,critical -rl 100 -c 25"
+                            <input type="text" id="nucleiOptions" class="glass-input w-100" value="-severity critical"
                                 placeholder="-severity critical,high -rl 100 -c 25 -tags cve,xss,sqli">
                         </div>
 
                         <!-- Nmap 옵션 (체크시 표시) -->
-                        <div id="nmapOptionsPanel" style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
+                        <div id="nmapOptionsPanel"
+                            style="display:none; margin-bottom:12px; padding:12px; background:rgba(255,255,255,0.05); border-radius:8px;">
                             <label class="form-label text-muted small fw-bold">Nmap 스캔 옵션</label>
-                            <input type="text" id="nmapOptions" class="glass-input w-100"
-                                value="-sV -T4 --open -p 1-10000"
+                            <input type="text" id="nmapOptions" class="glass-input w-100" value="-sS -sV -T4"
                                 placeholder="-sV -T4 --open -p 1-65535">
                         </div>
 
                         <label class="form-label text-muted small fw-bold mb-2">스캔 모듈 선택</label>
                         <style>
-                            .module-toggle { display: none; }
+                            .module-toggle {
+                                display: none;
+                            }
+
                             .module-btn {
-                                display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-                                padding: 6px 14px; border-radius: 20px; cursor: pointer;
-                                font-size: 0.78rem; font-weight: 600; user-select: none;
-                                line-height: 1; vertical-align: middle;
-                                border: 1px solid rgba(255,255,255,0.1);
-                                background: rgba(255,255,255,0.04);
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 6px;
+                                padding: 6px 14px;
+                                border-radius: 20px;
+                                cursor: pointer;
+                                font-size: 0.78rem;
+                                font-weight: 600;
+                                user-select: none;
+                                line-height: 1;
+                                vertical-align: middle;
+                                border: 1px solid rgba(255, 255, 255, 0.1);
+                                background: rgba(255, 255, 255, 0.04);
                                 color: var(--text-muted);
                                 transition: all 0.18s ease;
                             }
-                            .module-btn i { line-height: 1; display: flex; align-items: center; }
-                            .module-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-main); }
-                            .module-toggle:checked + .module-btn {
-                                background: rgba(99,102,241,0.15);
-                                border-color: rgba(99,102,241,0.5);
-                                color: var(--text-main);
-                                box-shadow: 0 0 0 1px rgba(99,102,241,0.3);
+
+                            .module-btn i {
+                                line-height: 1;
+                                display: flex;
+                                align-items: center;
                             }
-                            .module-toggle:disabled + .module-btn {
-                                opacity: 0.35; cursor: not-allowed; pointer-events: none;
+
+                            .module-btn:hover {
+                                background: rgba(255, 255, 255, 0.08);
+                                color: var(--text-main);
+                            }
+
+                            .module-toggle:checked+.module-btn {
+                                background: rgba(99, 102, 241, 0.15);
+                                border-color: rgba(99, 102, 241, 0.5);
+                                color: var(--text-main);
+                                box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3);
+                            }
+
+                            .module-toggle:disabled+.module-btn {
+                                opacity: 0.35;
+                                cursor: not-allowed;
+                                pointer-events: none;
                             }
                         </style>
+                        <label class="form-label text-muted small fw-bold mb-2">
+                            <i class="fa-solid fa-gears me-1"></i> 스캔 모듈 선택
+                        </label>
                         <div class="d-flex flex-wrap gap-2 mb-3" style="align-items: center;">
-                            <input class="module-toggle" type="checkbox" id="enableZapSpider" checked>
+                            <!-- 정찰 단계: ZAP Spider (기본 OFF) + FFuF (기본 ON) + Deep Recon (기본 ON) -->
+                            <input class="module-toggle" type="checkbox" id="enableZapSpider">
                             <label class="module-btn" for="enableZapSpider">
                                 <i class="fa-solid fa-spider text-info"></i> ZAP Spider
                             </label>
@@ -693,21 +740,25 @@
                             <input class="module-toggle" type="checkbox" id="enableFfuf" checked
                                 onchange="const dr=document.getElementById('enableDeepRecon'); dr.disabled=!this.checked; if(!this.checked) dr.checked=false; dr.dispatchEvent(new Event('change')); toggleFfufOptions(this.checked);">
                             <label class="module-btn" for="enableFfuf">
-                                <i class="fa-solid fa-hammer" style="color:#f59e0b;"></i> ffuf 퍼징
+                                <i class="fa-solid fa-hammer" style="color:#f59e0b;"></i> FFuF
                             </label>
 
                             <input class="module-toggle" type="checkbox" id="enableDeepRecon" checked>
                             <label class="module-btn" for="enableDeepRecon">
-                                <i class="fa-solid fa-layer-group" style="color:#a78bfa;"></i> ffuf 재귀 탐색
+                                <i class="fa-solid fa-layer-group" style="color:#a78bfa;"></i> 재귀 탐색
                             </label>
 
+                            <span style="margin: 0 8px; color: var(--text-muted); opacity: 0.5;">|</span>
 
-                            <input class="module-toggle" type="checkbox" id="enableNuclei" checked onchange="toggleNucleiOptions(this.checked);">
+                            <!-- 검증 단계: Nuclei (기본 OFF) + Nmap (기본 OFF) -->
+                            <input class="module-toggle" type="checkbox" id="enableNuclei"
+                                onchange="toggleNucleiOptions(this.checked);">
                             <label class="module-btn" for="enableNuclei">
                                 <i class="fa-solid fa-atom text-danger"></i> Nuclei
                             </label>
 
-                            <input class="module-toggle" type="checkbox" id="enableNmap" onchange="toggleNmapOptions(this.checked);">
+                            <input class="module-toggle" type="checkbox" id="enableNmap"
+                                onchange="toggleNmapOptions(this.checked);">
                             <label class="module-btn" for="enableNmap">
                                 <i class="fa-solid fa-network-wired text-info"></i> Nmap
                             </label>
@@ -742,10 +793,12 @@
                             <i class="fa-solid fa-brain text-primary me-2"></i>AI 설정
                         </h6>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-xs btn-outline-danger" onclick="clearAiSettingsCache()" style="font-size:0.72rem;">
+                            <button class="btn btn-xs btn-outline-danger" onclick="clearAiSettingsCache()"
+                                style="font-size:0.72rem;">
                                 <i class="fa-solid fa-trash me-1"></i>캐시 초기화
                             </button>
-                            <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#aiSettingsCollapse">
+                            <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#aiSettingsCollapse">
                                 <i class="fa-solid fa-chevron-down me-1"></i>접기/펼치기
                             </button>
                         </div>
@@ -772,7 +825,8 @@
                                         <i class="fa-solid fa-arrows-rotate me-1"></i>목록 불러오기
                                     </button>
                                 </div>
-                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b" oninput="localStorage.setItem('aiModel', this.value);">
+                                <input type="text" id="aiModel" class="glass-input w-100" placeholder="qwen/qwen3.5-9b"
+                                    oninput="localStorage.setItem('aiModel', this.value);">
                                 <select id="aiModelLmSelect" class="form-select mt-1"
                                     style="display:none; background-color: var(--bg-darker); color: var(--text-main); border-color: var(--border-color); font-size: 0.73rem;"
                                     onchange="document.getElementById('aiModel').value = this.value">
@@ -796,19 +850,26 @@
                             </div>
                             <div class="col-md-6" id="geminiKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">Gemini API Key</label>
-                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력" oninput="localStorage.setItem('geminiApiKey', this.value); fetchGeminiModels();">
+                                <input type="text" id="geminiApiKey" class="glass-input w-100" placeholder="API Key 입력"
+                                    oninput="localStorage.setItem('geminiApiKey', this.value); fetchGeminiModels();">
                             </div>
                             <div class="col-md-6" id="lmstudioKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">LMStudio API Key</label>
-                                <input type="text" id="lmstudioApiKey" class="glass-input w-100" placeholder="API Key 입력 (필요시)" oninput="localStorage.setItem('lmstudioApiKey', this.value);">
+                                <input type="text" id="lmstudioApiKey" class="glass-input w-100"
+                                    placeholder="API Key 입력 (필요시)"
+                                    oninput="localStorage.setItem('lmstudioApiKey', this.value);">
                             </div>
                             <div class="col-md-6" id="vertexKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">Vertex AI Auth Token</label>
-                                <input type="password" id="vertexApiKey" class="glass-input w-100" placeholder="ya29... (Bearer Token)" oninput="localStorage.setItem('vertexApiKey', this.value);">
+                                <input type="password" id="vertexApiKey" class="glass-input w-100"
+                                    placeholder="ya29... (Bearer Token)"
+                                    oninput="localStorage.setItem('vertexApiKey', this.value);">
                             </div>
                             <div class="col-md-6" id="claudeKeyContainer" style="display: none;">
                                 <label class="form-label text-muted small fw-bold">Claude API Key</label>
-                                <input type="password" id="claudeApiKey" class="glass-input w-100" placeholder="sk-ant-..." oninput="localStorage.setItem('claudeApiKey', this.value);">
+                                <input type="password" id="claudeApiKey" class="glass-input w-100"
+                                    placeholder="sk-ant-..."
+                                    oninput="localStorage.setItem('claudeApiKey', this.value);">
                             </div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1">
@@ -881,7 +942,11 @@
                         </button>
                     </div>
                     <div class="console-stream" id="logWindow" style="height: 300px;">
-                        <div style="color: #10b981;">[System] Security Engine online. Awaiting task.</div>
+                        <div class="log-item log-lv-ok">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-badge log-src-system">시스템</span>
+                            <span class="log-msg">보안 엔진 준비 완료. 작업 대기 중...</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -901,20 +966,25 @@
                 <!-- 탭 패널 -->
                 <div class="glass-card" style="padding:0; overflow:hidden; border-radius:12px;">
                     <!-- 탭 헤더 -->
-                    <div class="d-flex" style="border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.15);">
-                        <button class="scan-result-tab active" data-tab="vulns" onclick="switchScanResultTab('vulns')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                    <div class="d-flex"
+                        style="border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.15);">
+                        <button class="scan-result-tab active" data-tab="vulns" onclick="switchScanResultTab('vulns')"
+                            style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
                             <i class="fa-solid fa-brain me-1" style="color:#a78bfa;"></i>AI 분석
                             <span id="vulnsCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
                         </button>
-                        <button class="scan-result-tab" data-tab="endpoints" onclick="switchScanResultTab('endpoints')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                        <button class="scan-result-tab" data-tab="endpoints" onclick="switchScanResultTab('endpoints')"
+                            style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
                             <i class="fa-solid fa-circle-nodes me-1" style="color:#818cf8;"></i>엔드포인트
                             <span id="epCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
                         </button>
-                        <button class="scan-result-tab" data-tab="nuclei" onclick="switchScanResultTab('nuclei')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                        <button class="scan-result-tab" data-tab="nuclei" onclick="switchScanResultTab('nuclei')"
+                            style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
                             <i class="fa-solid fa-atom text-danger me-1"></i>Nuclei
                             <span id="nucleiCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
                         </button>
-                        <button class="scan-result-tab" data-tab="nmap" onclick="switchScanResultTab('nmap')" style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
+                        <button class="scan-result-tab" data-tab="nmap" onclick="switchScanResultTab('nmap')"
+                            style="padding:12px 22px; border:none; background:transparent; color:var(--text-muted); font-size:0.83rem; font-weight:600; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s;">
                             <i class="fa-solid fa-network-wired text-info me-1"></i>Nmap
                             <span id="nmapCount" style="font-size:0.7rem; color:#94a3b8; margin-left:4px;">0</span>
                         </button>
@@ -923,7 +993,8 @@
                     <!-- 엔드포인트 탭 콘텐츠 -->
                     <div id="endpointsTabPanel" style="display:none;">
                         <!-- 툴바 -->
-                        <div class="d-flex gap-2 align-items-center" style="padding:10px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                        <div class="d-flex gap-2 align-items-center"
+                            style="padding:10px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
                             <button class="btn btn-sm btn-outline-danger" onclick="clearZapHistory()">
                                 <i class="fa-solid fa-trash-can me-1"></i>히스토리 초기화
                             </button>
@@ -933,7 +1004,8 @@
                             <button id="btnAutoTarget" class="btn btn-sm btn-outline-warning" onclick="autoTarget()">
                                 <i class="fa-solid fa-crosshairs me-1"></i>자동 타겟지정
                             </button>
-                            <button id="btnSaveTargets" class="btn btn-sm btn-outline-success" onclick="saveAiTargets()">
+                            <button id="btnSaveTargets" class="btn btn-sm btn-outline-success"
+                                onclick="saveAiTargets()">
                                 <i class="fa-solid fa-floppy-disk me-1"></i>타겟 저장
                             </button>
                             <button id="btnRunAi" class="btn btn-sm btn-outline-primary" onclick="runAiAnalysis()">
@@ -969,15 +1041,27 @@
                             <table class="ep-table">
                                 <thead>
                                     <tr>
-                                        <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No. <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="60" class="text-center sortable" onclick="sortEndpoints('index')">No.
+                                            <i class="fa-solid fa-sort ms-1"></i>
+                                        </th>
                                         <th width="80" class="text-center sortable" onclick="sortEndpoints('ai')">
-                                            <input type="checkbox" id="checkAllEndpoints" onclick="event.stopPropagation()" onchange="toggleAllEndpoints(this)" style="margin-right:4px;">AI <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">Method <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th class="sortable" onclick="sortEndpoints('url')">URL Path <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">Status <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('sources')">Source <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">Time <i class="fa-solid fa-sort ms-1"></i></th>
-                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size <i class="fa-solid fa-sort ms-1"></i></th>
+                                            <input type="checkbox" id="checkAllEndpoints"
+                                                onclick="event.stopPropagation()" onchange="toggleAllEndpoints(this)"
+                                                style="margin-right:4px;">AI <i class="fa-solid fa-sort ms-1"></i>
+                                        </th>
+                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('method')">
+                                            Method <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th class="sortable" onclick="sortEndpoints('url')">URL Path <i
+                                                class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('status')">
+                                            Status <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="100" class="text-center sortable" onclick="sortEndpoints('sources')">
+                                            Source <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="140" class="text-center sortable" onclick="sortEndpoints('time')">
+                                            Time <i class="fa-solid fa-sort ms-1"></i></th>
+                                        <th width="90" class="text-center sortable" onclick="sortEndpoints('size')">Size
+                                            <i class="fa-solid fa-sort ms-1"></i>
+                                        </th>
                                         <th width="80" class="text-center">Deep Dive</th>
                                     </tr>
                                     <tr class="filter-row">
@@ -1032,19 +1116,23 @@
 
                     <!-- AI 분석 탭 콘텐츠 (vulns) -->
                     <div id="vulnsTabPanel">
-                        <div class="d-flex justify-content-between align-items-center" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                        <div class="d-flex justify-content-between align-items-center"
+                            style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
                             <div id="triageStatusInline" style="font-size:0.78rem; color:var(--text-muted);">
                                 <i class="fa-solid fa-crosshairs me-1 text-info"></i>
                                 <span>Phase 2 Deep Spear: 선택 후 <b>전문가 심층 검증</b> 버튼 클릭</span>
                             </div>
                             <div class="d-flex gap-2">
-                                <button id="btnTriageDeepDive" class="btn btn-sm btn-primary" onclick="deepDiveSelected()" title="선택된 의심 취약점에 전문가 에이전트를 투입합니다">
+                                <button id="btnTriageDeepDive" class="btn btn-sm btn-primary"
+                                    onclick="deepDiveSelected()" title="선택된 의심 취약점에 전문가 에이전트를 투입합니다">
                                     <i class="fa-solid fa-crosshairs me-1"></i>전문가 심층 검증
                                 </button>
-                                <button id="btnTriageStop" class="btn btn-sm btn-outline-warning" onclick="stopTriage()" style="display:none;">
+                                <button id="btnTriageStop" class="btn btn-sm btn-outline-warning" onclick="stopTriage()"
+                                    style="display:none;">
                                     <i class="fa-solid fa-stop me-1"></i>검증 중단
                                 </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="dismissSelected()" title="선택된 항목을 오탐으로 표시">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="dismissSelected()"
+                                    title="선택된 항목을 오탐으로 표시">
                                     <i class="fa-solid fa-ban me-1"></i>오탐 처리
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedCards()">
@@ -1053,83 +1141,90 @@
                             </div>
                         </div>
                         <div style="padding:16px;">
-                        <div class="stats-grid mb-3">
-                            <div class="stat-badge" style="border-top: 3px solid var(--critical);">
-                                <i class="fa-solid fa-radiation text-danger stat-icon"></i>
-                                <div class="stat-info">
-                                    <div class="stat-title">치명적 위험</div>
-                                    <div class="stat-number" id="statCritical">0</div>
+                            <div class="stats-grid mb-3">
+                                <div class="stat-badge" style="border-top: 3px solid var(--critical);">
+                                    <i class="fa-solid fa-radiation text-danger stat-icon"></i>
+                                    <div class="stat-info">
+                                        <div class="stat-title">치명적 위험</div>
+                                        <div class="stat-number" id="statCritical">0</div>
+                                    </div>
+                                </div>
+                                <div class="stat-badge" style="border-top: 3px solid var(--high);">
+                                    <i class="fa-solid fa-burst text-warning stat-icon"></i>
+                                    <div class="stat-info">
+                                        <div class="stat-title">고위험</div>
+                                        <div class="stat-number" id="statHigh">0</div>
+                                    </div>
+                                </div>
+                                <div class="stat-badge" style="border-top: 3px solid var(--medium);">
+                                    <i class="fa-solid fa-circle-exclamation text-info stat-icon"></i>
+                                    <div class="stat-info">
+                                        <div class="stat-title">중/저위험</div>
+                                        <div class="stat-number" id="statMedLow">0</div>
+                                    </div>
+                                </div>
+                                <div class="stat-badge" style="border-top: 3px solid var(--info);">
+                                    <i class="fa-solid fa-link text-primary stat-icon"></i>
+                                    <div class="stat-info">
+                                        <div class="stat-title">엔드포인트</div>
+                                        <div class="stat-number" id="statEndpoints">0</div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="stat-badge" style="border-top: 3px solid var(--high);">
-                                <i class="fa-solid fa-burst text-warning stat-icon"></i>
-                                <div class="stat-info">
-                                    <div class="stat-title">고위험</div>
-                                    <div class="stat-number" id="statHigh">0</div>
-                                </div>
+                            <div class="table-responsive" style="max-height:calc(100vh - 320px); overflow-y:auto;">
+                                <table class="flat-table">
+                                    <thead>
+                                        <tr>
+                                            <th width="4%" class="text-center">
+                                                <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)"
+                                                    style="cursor:pointer;">
+                                            </th>
+                                            <th width="4%">No.</th>
+                                            <th width="8%">위험도</th>
+                                            <th width="6%">점수</th>
+                                            <th width="22%">취약점 명칭</th>
+                                            <th width="25%">대상 파라미터 / 주입 상세</th>
+                                            <th width="10%">TTP</th>
+                                            <th width="12%">OWASP TOP10</th>
+                                            <th width="7%" class="text-center">관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vulnsTableBody">
+                                        <tr>
+                                            <td colspan="9" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                            <div class="stat-badge" style="border-top: 3px solid var(--medium);">
-                                <i class="fa-solid fa-circle-exclamation text-info stat-icon"></i>
-                                <div class="stat-info">
-                                    <div class="stat-title">중/저위험</div>
-                                    <div class="stat-number" id="statMedLow">0</div>
-                                </div>
-                            </div>
-                            <div class="stat-badge" style="border-top: 3px solid var(--info);">
-                                <i class="fa-solid fa-link text-primary stat-icon"></i>
-                                <div class="stat-info">
-                                    <div class="stat-title">엔드포인트</div>
-                                    <div class="stat-number" id="statEndpoints">0</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="table-responsive" style="max-height:calc(100vh - 320px); overflow-y:auto;">
-                            <table class="flat-table">
-                                <thead>
-                                    <tr>
-                                        <th width="4%" class="text-center">
-                                            <input type="checkbox" id="checkAllVulns" onclick="toggleAllVulns(this)" style="cursor:pointer;">
-                                        </th>
-                                        <th width="4%">No.</th>
-                                        <th width="8%">위험도</th>
-                                        <th width="6%">점수</th>
-                                        <th width="22%">취약점 명칭</th>
-                                        <th width="25%">대상 파라미터 / 주입 상세</th>
-                                        <th width="10%">TTP</th>
-                                        <th width="12%">OWASP TOP10</th>
-                                        <th width="7%" class="text-center">관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vulnsTableBody">
-                                    <tr>
-                                        <td colspan="9" class="empty-state">탐지된 취약점이 없습니다. 스캔을 가동하세요.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                         </div><!-- /padding:16px -->
                     </div><!-- /vulnsTabPanel -->
 
                     <!-- Nuclei 탭 콘텐츠 -->
                     <div id="nucleiTabPanel" style="display:none;">
-                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="nucleiResults=[]; renderNucleiResults();">
+                        <div class="d-flex justify-content-end"
+                            style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                onclick="nucleiResults=[]; renderNucleiResults();">
                                 <i class="fa-solid fa-trash-can me-1"></i>결과 초기화
                             </button>
                         </div>
-                        <div id="nucleiResultsPanel" style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
+                        <div id="nucleiResultsPanel"
+                            style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
                             <div class="scan-result-empty">발견된 Nuclei 결과가 없습니다.</div>
                         </div>
                     </div>
 
                     <!-- Nmap 탭 콘텐츠 -->
                     <div id="nmapTabPanel" style="display:none;">
-                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="nmapResults=[]; renderNmapResults();">
+                        <div class="d-flex justify-content-end"
+                            style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                onclick="nmapResults=[]; renderNmapResults();">
                                 <i class="fa-solid fa-trash-can me-1"></i>결과 초기화
                             </button>
                         </div>
-                        <div id="nmapResultsPanel" style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
+                        <div id="nmapResultsPanel"
+                            style="max-height:calc(100vh - 260px); overflow-y:auto; padding:16px;">
                             <div class="scan-result-empty">발견된 Nmap 결과가 없습니다.</div>
                         </div>
                     </div>
@@ -1141,7 +1236,7 @@
 
         </div>
 
-            <!-- Nuclei Section -->
+        <!-- Nuclei Section -->
 
         <!-- 5. Settings Section -->
         <!-- 🏢 Side Drawer Inspector (동적 생성 연동 예정) -->

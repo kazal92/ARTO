@@ -147,8 +147,10 @@ async def start_scan(req: ScanRequest, request: Request):
             sent_lines += 1
 
         if not is_resume and not is_active(session_dir):
-            await clear_cancelled(session_dir)  # 이전 정지 상태 초기화
+            await clear_cancelled(session_dir)
             await mark_active(session_dir)
+
+
 
             async def run_scan_task(ai_config: dict):
                 try:
@@ -162,7 +164,6 @@ async def start_scan(req: ScanRequest, request: Request):
                     ):
                         await asyncio.sleep(0)
 
-                    stream_log(session_dir, "정찰이 완료되었습니다. 엔드포인트 탭에서 AI 분석 대상을 지정하세요.", "System", 100)
                     stream_custom(session_dir, {"type": "scan_complete", "data": []})
                 except Exception as e:
                     stream_log(session_dir, f"Background Scan Error: {str(e)}", "System")

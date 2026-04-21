@@ -10,8 +10,8 @@ let currentProject = { id: null, name: '프로젝트 미선택', target: '' };
 function syncDashboardStats() {
     const el = (id) => document.getElementById(id);
     if (el('dashTotalProjects')) el('dashTotalProjects').innerText = globalStats.totalProjects;
-    if (el('dashTotalVulns'))    el('dashTotalVulns').innerText    = globalStats.totalVulns;
-    if (el('dashDoneProjects'))  el('dashDoneProjects').innerText  = globalStats.doneProjects;
+    if (el('dashTotalVulns')) el('dashTotalVulns').innerText = globalStats.totalVulns;
+    if (el('dashDoneProjects')) el('dashDoneProjects').innerText = globalStats.doneProjects;
 }
 
 function renderDashRecentProjects(sessions) {
@@ -30,7 +30,7 @@ function renderDashRecentProjects(sessions) {
             const d = parts[parts.length - 2];
             const t = parts[parts.length - 1];
             if (d.length === 8 && t.length === 6)
-                dateStr = `${d.substring(0,4)}-${d.substring(4,6)}-${d.substring(6,8)} ${t.substring(0,2)}:${t.substring(2,4)}`;
+                dateStr = `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)} ${t.substring(0, 2)}:${t.substring(2, 4)}`;
         }
         return `
             <div class="col-md-4">
@@ -56,7 +56,7 @@ function renderDashRecentProjects(sessions) {
                 const el = document.getElementById(`dash-title-${s}`);
                 if (el && info.project_name) el.innerText = info.project_name;
             }
-        }).catch(() => {});
+        }).catch(() => { });
     });
 }
 
@@ -447,7 +447,7 @@ async function loadHistoryList(skipSwitch = false) {
 async function startNewScanWizard() {
     const name = document.getElementById('newProjectName').value;
     if (!name) return alert("프로젝트 명칭을 입력해 주세요.");
-    const target = "http://172.27.50.37:8002";
+    const target = "http://172.27.50.37:8002/";
 
     try {
         const res = await fetch(`${API_BASE}/api/project/create`, {

@@ -20,7 +20,7 @@ class NucleiRequest(BaseModel):
     session_id: str
     target_url: str
     headers: dict = {}
-    nuclei_options: str = "-severity medium,high,critical -rl 100 -c 25"
+    nuclei_options: str = "-severity critical"
 
     @field_validator("target_url")
     @classmethod
@@ -50,9 +50,6 @@ async def nuclei_run(req: NucleiRequest):
     async def run_task():
         findings = []
         try:
-            stream_log(session_dir, f"Nuclei 스캔 시작: {req.target_url}", "Nuclei", 0)
-            stream_log(session_dir, f"옵션: {req.nuclei_options}", "Nuclei", 5)
-
             async for update in run_nuclei(
                 req.target_url,
                 session_dir,
