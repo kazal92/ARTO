@@ -199,6 +199,11 @@ function renderEndpoints(endpoints, skipClearFilters = false) {
             <td class="text-center">${srcBadges}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${ep.time || '-'}</td>
             <td class="text-center font-mono" style="font-size:0.72rem;color:var(--text-muted);">${resSize}</td>
+            <td class="text-center">
+                <button class="btn btn-xs btn-outline-info" onclick="deepDiveEndpoint('${method}', '${(ep.url || '').replace(/'/g, "\\'")}', ${globalIdx}); event.stopPropagation();" style="padding:2px 6px;font-size:0.7rem;" title="이 엔드포인트 심층 검증">
+                    <i class="fa-solid fa-crosshairs"></i>
+                </button>
+            </td>
         `;
         el.appendChild(tr);
     });
@@ -491,5 +496,142 @@ function renderNmapResults() {
                 }
             })
             .catch(() => {});
+    }
+}
+
+// ── Phase 2: 엔드포인트 심층 검증 ────────────────────────
+
+async function deepDiveEndpoint(method, url, epIdx) {
+    const ep = allEndpoints[epIdx];
+    if (!ep) return alert("엔드포인트 정보를 찾을 수 없습니다.");
+
+    if (!confirm(`[${method.toUpperCase()}] ${url}\n\n이 엔드포인트에 대해 전문가 심층 검증을 실행할까요?`)) return;
+
+    // findings.js 함수들 호출 확인
+    if (typeof aiCardsData === 'undefined' || typeof _toggleTriageRunning === 'undefined') {
+        alert("findings.js가 로드되지 않았습니다. 취약점 탭에서 실행해주세요.");
+        return;
+    }
+
+    if (_triageRunning) {
+        alert("이미 전문가 검증이 실행 중입니다.");
+        return;
+    }
+
+    const sessionId = localStorage.getItem('currentSessionId');
+    if (!sessionId) return alert("세션이 없습니다.");
+
+    // 엔드포인트를 finding으로 변환
+    const finding = {
+        title: `[${method.toUpperCase()}] ${url}`,
+        target: url,
+        severity: "MEDIUM",
+        confidence: 50,
+        description: `Endpoint from reconnaissance: ${method.toUpperCase()} ${url}`,
+        evidence: JSON.stringify({ endpoint: url, method, status: ep.status, sources: ep.sources }),
+        steps: `curl -X ${method.toUpperCase()} "${url}"`,
+        recommendation: "Conduct manual testing with appropriate tools",
+        verified: false,
+        source: "endpoint_recon",
+        ttp: "T1046",
+        owasp: "A01:2025",
+        cwe: "CWE-200"
+    };
+
+    // ID 생성 (SHA1)
+    let fid = 'ep_' + Date.now();
+    if (typeof CryptoJS !== 'undefined') {
+        fid = CryptoJS.SHA1(`${finding.title}|${finding.target}`).toString().substring(0, 16);
+    }
+    finding.id = fid;
+
+    // aiCardsData에 추가
+    aiCardsData.push(finding);
+
+    // ai_findings.json에 저장 (specialist_agent가 찾을 수 있도록)
+    if (typeof saveFindings === 'function') {
+        await saveFindings();
+    }
+
+    const aiCfg = (typeof getAIConfig === 'function') ? getAIConfig() : {};
+
+    _toggleTriageRunning(true);
+    _setTriageStatus(`심층 검증 중: [${method.toUpperCase()}] ${url}`, 'running');
+    if (typeof appendLog === 'function') appendLog(`엔드포인트 심층 검증 시작: ${method.toUpperCase()} ${url}`, "Triage");
+
+    try {
+        const res = await fetch(`${API_BASE}/api/triage/deep-dive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                session_id: sessionId,
+                finding_ids: [fid],
+                ai_config: aiCfg,
+                max_parallel: 1
+            })
+        });
+
+        if (!res.ok || !res.body) {
+            if (typeof appendLog === 'function') appendLog("전문가 검증 API 연결 실패", "Triage");
+            _toggleTriageRunning(false);
+            _setTriageStatus('연결 실패', 'err');
+            return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let verified = false;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop();
+
+            for (const evt of events) {
+                const t = evt.trim();
+                if (!t || !t.startsWith('data: ')) continue;
+                let data;
+                try { data = JSON.parse(t.substring(6)); } catch (e) { continue; }
+
+                if (data.type === 'log' || data.type === 'progress') {
+                    if (typeof appendLog === 'function') appendLog(data.message || data.msg || '', data.source || 'Triage');
+                }
+                else if (data.type === 'triage_start') {
+                    if (typeof appendLog === 'function') appendLog(`[${data.vuln_class || 'UNKNOWN'}] 전문가 투입: ${method.toUpperCase()} ${url}`, 'Triage');
+                }
+                else if (data.type === 'triage_tool_call') {
+                    if (typeof appendLog === 'function') appendLog(`  └ ${data.tool}: ...`, 'Triage');
+                }
+                else if (data.type === 'triage_finding_verified') {
+                    verified = true;
+                }
+                else if (data.type === 'triage_complete') {
+                    if (data.finding_id === fid) {
+                        verified = data.verified || false;
+                    }
+                }
+                else if (data.type === 'triage_batch_complete' || data.type === 'scan_complete') {
+                    break;
+                }
+            }
+        }
+
+        _setTriageStatus(
+            verified ? `✅ 검증 성공: [${method.toUpperCase()}] ${url}` : `❌ 검증 실패`,
+            verified ? 'ok' : 'err'
+        );
+        if (typeof appendLog === 'function') {
+            appendLog(verified ? `✅ 심층 검증 성공` : `❌ 심층 검증 실패`, "Triage");
+        }
+        // UI 갱신 (취약점 탭에 추가되지는 않음, 로그만 표시)
+    } catch (e) {
+        console.error("deep-dive 에러:", e);
+        if (typeof appendLog === 'function') appendLog(`전문가 검증 오류: ${e}`, "Triage");
+        _setTriageStatus('오류 발생', 'err');
+    } finally {
+        _toggleTriageRunning(false);
     }
 }
