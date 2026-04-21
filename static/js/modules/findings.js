@@ -47,14 +47,29 @@ function renderCards(cardsArray) {
         const safeTtp = (card.ttp || '—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const safeOwasp = (card.owasp || '—').replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+        // ── Triage 상태/분류 배지 ──────────────────────────────
+        const tStatus = (card.triage_status || '').toLowerCase();
+        let triageBadge = '';
+        if (tStatus === 'in_progress') {
+            triageBadge = ' <span class="badge bg-info rounded-pill ms-2"><i class="fa-solid fa-circle-notch fa-spin me-1"></i>검증 중</span>';
+        } else if (tStatus === 'verified' || card.verified) {
+            triageBadge = ' <span class="badge bg-success rounded-pill ms-2"><i class="fa-solid fa-check me-1"></i>검증됨</span>';
+        } else if (tStatus === 'failed') {
+            triageBadge = ' <span class="badge bg-secondary rounded-pill ms-2"><i class="fa-solid fa-xmark me-1"></i>검증실패</span>';
+        } else if (tStatus === 'dismissed') {
+            triageBadge = ' <span class="badge bg-dark border rounded-pill ms-2"><i class="fa-solid fa-ban me-1"></i>오탐</span>';
+        }
+        const vClass = card.vuln_class ? ` <span class="badge ms-1" style="background:rgba(99,102,241,0.15);color:#a5b4fc;font-size:0.6rem;vertical-align:middle;">${card.vuln_class}</span>` : '';
+        const fid = card.id || '';
+
         tr.innerHTML = `
             <td class="text-center" onclick="event.stopPropagation()">
-                <input type="checkbox" class="vuln-checkbox" style="cursor:pointer;" value="${index}">
+                <input type="checkbox" class="vuln-checkbox" style="cursor:pointer;" value="${index}" data-fid="${fid}">
             </td>
             <td class="text-center text-muted" style="font-size:0.8rem;">${index + 1}</td>
             <td><span class="sev-pill ${sevClass}">${sev}</span></td>
             <td><span class="pill ${confClass}" style="min-width:35px;text-align:center;">${confScore}</span></td>
-            <td class="fw-bold" style="color:var(--text-main);">${safeTitle}${verifiedBadge}${sourceBadge}</td>
+            <td class="fw-bold" style="color:var(--text-main);" data-fid="${fid}">${safeTitle}${vClass}${triageBadge}${verifiedBadge}${sourceBadge}</td>
             <td class="text-muted font-mono" style="font-size:0.8rem;word-break:break-all;">${safeTarget}</td>
             <td style="font-size:0.8rem;"><span class="badge bg-secondary font-mono" style="padding:4px 8px;white-space:nowrap;display:inline-block;font-size:0.8rem;">${safeTtp}</span></td>
             <td style="font-size:0.8rem;"><span class="badge bg-dark border font-mono" style="padding:4px 8px;white-space:nowrap;display:inline-block;font-size:0.8rem;">${safeOwasp}</span></td>
@@ -412,4 +427,264 @@ function copyVulnSteps(cardIndex) {
         console.error('재현 단계 복사 실패:', err);
         alert('클립보드 복사에 실패했습니다.');
     });
+}
+
+// ── Phase 2: Triage / Deep Spear ─────────────────────────
+
+let _triageRunning = false;
+
+function _currentSessionId() {
+    return (typeof currentProject !== 'undefined' ? currentProject.id : null)
+        || localStorage.getItem('currentSessionId') || "";
+}
+
+function _setTriageStatus(text, type) {
+    const box = document.getElementById('triageStatusInline');
+    if (!box) return;
+    const color = type === 'running' ? 'var(--info)'
+        : type === 'ok' ? 'var(--success, #22c55e)'
+        : type === 'err' ? 'var(--danger, #ef4444)'
+        : 'var(--text-muted)';
+    const icon = type === 'running' ? 'fa-circle-notch fa-spin'
+        : type === 'ok' ? 'fa-check'
+        : type === 'err' ? 'fa-triangle-exclamation'
+        : 'fa-crosshairs';
+    box.innerHTML = `<i class="fa-solid ${icon} me-1" style="color:${color}"></i><span>${text}</span>`;
+}
+
+function _toggleTriageRunning(running) {
+    _triageRunning = running;
+    const btnRun = document.getElementById('btnTriageDeepDive');
+    const btnStop = document.getElementById('btnTriageStop');
+    if (btnRun) btnRun.disabled = running;
+    if (btnStop) btnStop.style.display = running ? 'inline-block' : 'none';
+}
+
+function _findCardIndexById(fid) {
+    if (!fid) return -1;
+    return aiCardsData.findIndex(c => c && c.id === fid);
+}
+
+function _applyTriagePatch(fid, patch) {
+    const idx = _findCardIndexById(fid);
+    if (idx < 0) return;
+    Object.assign(aiCardsData[idx], patch || {});
+    renderCards(aiCardsData);
+}
+
+async function _ensureFindingIds() {
+    const sid = _currentSessionId();
+    if (!sid) return false;
+    try {
+        const res = await fetch(`${API_BASE}/api/triage/classify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') return false;
+        // classify 가 id/vuln_class/priority 를 파일에 기록했으므로 reload
+        const r2 = await fetch(`${API_BASE}/api/triage/list`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid })
+        });
+        const d2 = await r2.json();
+        if (d2.status === 'success' && Array.isArray(d2.findings)) {
+            aiCardsData = d2.findings;
+            renderCards(aiCardsData);
+        }
+        return true;
+    } catch (e) {
+        console.error("triage classify 실패:", e);
+        return false;
+    }
+}
+
+function _collectSelectedFindingIds() {
+    const boxes = document.querySelectorAll('.vuln-checkbox:checked');
+    const fids = [];
+    boxes.forEach(b => {
+        const fid = b.getAttribute('data-fid');
+        if (fid) fids.push(fid);
+        else {
+            const idx = parseInt(b.value);
+            const card = aiCardsData[idx];
+            if (card && card.id) fids.push(card.id);
+        }
+    });
+    return Array.from(new Set(fids));
+}
+
+async function deepDiveSelected() {
+    if (_triageRunning) {
+        alert("이미 전문가 검증이 실행 중입니다.");
+        return;
+    }
+    const sid = _currentSessionId();
+    if (!sid) {
+        alert("세션이 없습니다. 먼저 스캔을 수행하거나 프로젝트를 선택하세요.");
+        return;
+    }
+
+    await _ensureFindingIds();
+
+    const fids = _collectSelectedFindingIds();
+    if (fids.length === 0) {
+        alert("심층 검증할 항목을 체크박스로 선택해 주세요.");
+        return;
+    }
+
+    if (!confirm(`선택된 ${fids.length}건에 전문가 AI 에이전트를 투입합니다. 진행할까요?`)) return;
+
+    // AI 설정 수집
+    const aiCfg = (typeof getAIConfig === 'function') ? getAIConfig() : {};
+
+    _toggleTriageRunning(true);
+    _setTriageStatus(`Phase 2 실행 중 — 0/${fids.length}`, 'running');
+    appendLog(`Phase 2 전문가 검증 시작 — ${fids.length}건`, "Triage");
+
+    // 선택된 카드 in_progress 표시
+    fids.forEach(fid => _applyTriagePatch(fid, { triage_status: 'in_progress' }));
+
+    try {
+        const res = await fetch(`${API_BASE}/api/triage/deep-dive`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                session_id: sid,
+                finding_ids: fids,
+                ai_config: aiCfg,
+                max_parallel: 1
+            })
+        });
+        if (!res.ok || !res.body) {
+            appendLog("전문가 검증 API 연결 실패", "Triage");
+            _toggleTriageRunning(false);
+            _setTriageStatus('연결 실패', 'err');
+            return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let done_count = 0;
+        let verified_count = 0;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop();
+
+            for (const evt of events) {
+                const t = evt.trim();
+                if (!t || !t.startsWith('data: ')) continue;
+                let data;
+                try { data = JSON.parse(t.substring(6)); } catch (e) { continue; }
+
+                if (data.type === 'log' || data.type === 'progress') {
+                    appendLog(data.message || data.msg || '', data.source || 'Triage');
+                }
+                else if (data.type === 'triage_start') {
+                    _applyTriagePatch(data.finding_id, {
+                        triage_status: 'in_progress',
+                        vuln_class: data.vuln_class
+                    });
+                    appendLog(`[${data.vuln_class}] 전문가 투입: ${data.title || data.finding_id}`, 'Triage');
+                }
+                else if (data.type === 'triage_tool_call') {
+                    appendLog(`  └ ${data.tool}: ${JSON.stringify(data.input || {}).slice(0, 180)}`, 'Triage');
+                }
+                else if (data.type === 'triage_tool_result') {
+                    const preview = (data.output || '').split('\n').slice(0, 2).join(' / ').slice(0, 200);
+                    if (preview) appendLog(`  └ 결과: ${preview}`, 'Triage');
+                }
+                else if (data.type === 'triage_finding_verified') {
+                    verified_count += 1;
+                    _applyTriagePatch(data.finding_id, {
+                        triage_status: 'verified',
+                        verified: true
+                    });
+                }
+                else if (data.type === 'triage_complete') {
+                    done_count += 1;
+                    _applyTriagePatch(data.finding_id, {
+                        triage_status: data.verified ? 'verified' : 'failed',
+                        verified: !!data.verified
+                    });
+                    _setTriageStatus(
+                        `Phase 2 실행 중 — ${done_count}/${fids.length} (검증성공 ${verified_count})`,
+                        'running'
+                    );
+                }
+                else if (data.type === 'triage_batch_complete' || data.type === 'scan_complete') {
+                    break;
+                }
+            }
+        }
+
+        _setTriageStatus(
+            `Phase 2 완료 — 검증성공 ${verified_count} / 전체 ${fids.length}`,
+            verified_count > 0 ? 'ok' : 'err'
+        );
+        appendLog(`Phase 2 완료 — 검증 ${verified_count} / ${fids.length}`, "Triage");
+    } catch (e) {
+        console.error("deep-dive 에러:", e);
+        appendLog(`전문가 검증 오류: ${e}`, "Triage");
+        _setTriageStatus('오류 발생', 'err');
+    } finally {
+        _toggleTriageRunning(false);
+        saveFindings();
+    }
+}
+
+async function stopTriage() {
+    const sid = _currentSessionId();
+    if (!sid) return;
+    try {
+        await fetch(`${API_BASE}/api/triage/stop`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid })
+        });
+        appendLog("전문가 검증 중단 신호 전송", "Triage");
+        _setTriageStatus('중단 요청 전송됨', 'err');
+    } catch (e) {
+        console.error("triage stop 실패:", e);
+    }
+}
+
+async function dismissSelected() {
+    const sid = _currentSessionId();
+    if (!sid) return;
+    await _ensureFindingIds();
+    const fids = _collectSelectedFindingIds();
+    if (fids.length === 0) return alert("오탐 처리할 항목을 선택해 주세요.");
+
+    const reason = prompt(`선택된 ${fids.length}건을 오탐으로 표시합니다. 사유(선택):`, "");
+    if (reason === null) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/triage/dismiss`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sid, finding_ids: fids, reason: reason || "" })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            fids.forEach(fid => _applyTriagePatch(fid, {
+                triage_status: 'dismissed',
+                verified: false,
+                dismiss_reason: reason || ''
+            }));
+            appendLog(`오탐 처리 완료: ${data.dismissed}건`, "Triage");
+        } else {
+            alert("오탐 처리 실패: " + (data.message || ''));
+        }
+    } catch (e) {
+        console.error("dismiss 실패:", e);
+        alert("오탐 처리 중 오류가 발생했습니다.");
+    }
 }

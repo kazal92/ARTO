@@ -1030,10 +1030,25 @@
 
                     <!-- AI 분석 탭 콘텐츠 (vulns) -->
                     <div id="vulnsTabPanel">
-                        <div class="d-flex justify-content-end" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedCards()">
-                                <i class="fa-solid fa-trash-can me-1"></i>선택 삭제
-                            </button>
+                        <div class="d-flex justify-content-between align-items-center" style="padding:8px 16px; border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.08);">
+                            <div id="triageStatusInline" style="font-size:0.78rem; color:var(--text-muted);">
+                                <i class="fa-solid fa-crosshairs me-1 text-info"></i>
+                                <span>Phase 2 Deep Spear: 선택 후 <b>전문가 심층 검증</b> 버튼 클릭</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button id="btnTriageDeepDive" class="btn btn-sm btn-primary" onclick="deepDiveSelected()" title="선택된 의심 취약점에 전문가 에이전트를 투입합니다">
+                                    <i class="fa-solid fa-crosshairs me-1"></i>전문가 심층 검증
+                                </button>
+                                <button id="btnTriageStop" class="btn btn-sm btn-outline-warning" onclick="stopTriage()" style="display:none;">
+                                    <i class="fa-solid fa-stop me-1"></i>검증 중단
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="dismissSelected()" title="선택된 항목을 오탐으로 표시">
+                                    <i class="fa-solid fa-ban me-1"></i>오탐 처리
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedCards()">
+                                    <i class="fa-solid fa-trash-can me-1"></i>선택 삭제
+                                </button>
+                            </div>
                         </div>
                         <div style="padding:16px;">
                         <div class="stats-grid mb-3">

@@ -18,6 +18,7 @@ from api.agent import router as agent_router
 from api.terminal import router as terminal_router
 from api.nuclei import router as nuclei_router
 from api.nmap import router as nmap_router
+from api.triage import router as triage_router
 
 app = FastAPI(title="ARTO Web Dashboard")
 templates = Jinja2Templates(directory="templates")
@@ -32,6 +33,7 @@ app.include_router(agent_router)
 app.include_router(terminal_router)
 app.include_router(nuclei_router)
 app.include_router(nmap_router)
+app.include_router(triage_router)
 
 
 @app.get("/", response_class=HTMLResponse)
